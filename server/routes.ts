@@ -172,6 +172,30 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json({ id: user.id, email: user.email, name: user.name, role: user.role });
   }));
 
+  app.get("/api/auth/sessions", authMiddleware, asyncHandler(async (req: AuthRequest, res: Response) => {
+    const user = await storage.getUser(req.userId!);
+    if (!user) {
+      res.status(404).json({ error: "Användare hittades inte", code: "USER_NOT_FOUND" });
+      return;
+    }
+    if (user.role !== "admin") {
+      res.status(403).json({ error: "Endast admin kan se sessioner", code: "FORBIDDEN" });
+      return;
+    }
+
+    const userIds = new Set(Array.from(sessions.values()));
+    const users = await Promise.all(Array.from(userIds).map((id) => storage.getUser(id)));
+    const usersById = Object.fromEntries(users.filter(Boolean).map((u) => [u!.id, { id: u!.id, email: u!.email, name: u!.name, role: u!.role }]));
+
+    const entries = Array.from(sessions.entries()).map(([token, uid]) => ({
+      token,
+      userId: uid,
+      user: usersById[uid] || null,
+    }));
+
+    res.json({ totalSessions: entries.length, sessions: entries });
+  }));
+
   // Document routes
   app.get("/api/documents", authMiddleware, asyncHandler(async (req: AuthRequest, res: Response) => {
     const { type, category, search } = req.query as any;

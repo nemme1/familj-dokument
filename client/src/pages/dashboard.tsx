@@ -34,6 +34,15 @@ export default function DashboardPage() {
 
   const recent = recentDocs?.slice(0, 6) || [];
 
+  const { data: sessionsData, isLoading: sessionsLoading } = useQuery({
+    queryKey: ["/api/auth/sessions"],
+    queryFn: async () => {
+      const res = await authFetch("/api/auth/sessions");
+      return res.json();
+    },
+    enabled: user?.role === "admin",
+  });
+
   return (
     <div className="space-y-6">
       {/* Welcome */}
@@ -117,6 +126,27 @@ export default function DashboardPage() {
           </>
         )}
       </div>
+
+      {user?.role === "admin" ? (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold text-sm">Sessioner</h2>
+          </div>
+          {sessionsLoading ? (
+            <Card><CardContent className="py-4"><Skeleton className="h-8 w-24" /><Skeleton className="h-4 w-24 mt-2" /></CardContent></Card>
+          ) : (
+            <Card>
+              <CardContent className="py-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Badge variant="secondary" className="text-xs">Admin</Badge>
+                  <span className="text-lg font-semibold tabular-nums" data-testid="text-total-sessions">{sessionsData?.totalSessions ?? 0}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">Aktiva inloggningar just nu</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      ) : null}
 
       {/* Recent uploads */}
       <div>
