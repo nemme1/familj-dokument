@@ -11,7 +11,7 @@ import path from "path";
 import fs from "fs";
 
 const MAX_FILE_SIZE = Number(process.env.MAX_FILE_SIZE || 20 * 1024 * 1024);
-const sessionsFilePath = path.join(process.cwd(), "data", "sessions.json");
+const sessionsFilePath = path.join(process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(process.cwd(), "data"), "sessions.json");
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_FILE_SIZE } });
 
