@@ -40,10 +40,6 @@ sqlite.exec(`
     file_name TEXT NOT NULL,
     file_size INTEGER NOT NULL,
     mime_type TEXT NOT NULL,
-    ocr_text TEXT,
-    ocr_amount TEXT,
-    ocr_date TEXT,
-    ocr_store TEXT,
     deleted INTEGER NOT NULL DEFAULT 0,
     deleted_at TEXT,
     created_at TEXT NOT NULL,
@@ -117,8 +113,6 @@ export class SqliteStorage implements IStorage {
         conditions.push(
           or(
             like(documents.title, pattern),
-            like(documents.ocrText, pattern),
-            like(documents.ocrStore, pattern),
             like(documents.category, pattern)
           )
         );

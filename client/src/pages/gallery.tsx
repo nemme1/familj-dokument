@@ -16,7 +16,7 @@ import { receiptCategories, documentCategories } from "@shared/schema";
 import type { Document } from "@shared/schema";
 import {
   Search, Filter, FileText, Trash2, Download,
-  Receipt, X, ZoomIn, Calendar, DollarSign, Store,
+  Receipt, X, ZoomIn,
   Archive
 } from "lucide-react";
 
@@ -204,39 +204,12 @@ export default function GalleryPage() {
                     <Badge variant="secondary">{selectedDoc.category}</Badge>
                     <Badge variant="outline">{selectedDoc.type === "receipt" ? "Kvitto" : "Dokument"}</Badge>
                   </div>
-                  {selectedDoc.ocrAmount && (
-                    <div className="flex items-center gap-1.5 text-muted-foreground">
-                      <DollarSign className="w-3.5 h-3.5" />
-                      <span className="tabular-nums">{selectedDoc.ocrAmount}</span>
-                    </div>
-                  )}
-                  {selectedDoc.ocrDate && (
-                    <div className="flex items-center gap-1.5 text-muted-foreground">
-                      <Calendar className="w-3.5 h-3.5" />
-                      <span>{selectedDoc.ocrDate}</span>
-                    </div>
-                  )}
-                  {selectedDoc.ocrStore && (
-                    <div className="flex items-center gap-1.5 text-muted-foreground">
-                      <Store className="w-3.5 h-3.5" />
-                      <span>{selectedDoc.ocrStore}</span>
-                    </div>
-                  )}
                 </div>
 
                 <div className="text-xs text-muted-foreground space-y-1">
                   <p>Filstorlek: {(selectedDoc.fileSize / 1024).toFixed(1)} KB</p>
                   <p>Uppladdad: {new Date(selectedDoc.createdAt).toLocaleString("sv-SE")}</p>
                 </div>
-
-                {selectedDoc.ocrText && (
-                  <details className="text-xs">
-                    <summary className="text-muted-foreground cursor-pointer">OCR-text</summary>
-                    <pre className="mt-2 p-2 bg-muted rounded text-[11px] whitespace-pre-wrap max-h-32 overflow-y-auto">
-                      {selectedDoc.ocrText}
-                    </pre>
-                  </details>
-                )}
 
                 <div className="flex gap-2">
                   <Button

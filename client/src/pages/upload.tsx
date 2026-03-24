@@ -11,7 +11,7 @@ import { queryClient } from "@/lib/queryClient";
 import { receiptCategories, documentCategories } from "@shared/schema";
 import {
   Camera, Upload, X, Check, Loader2,
-  RotateCcw, FileImage, ScanLine
+  RotateCcw, FileImage
 } from "lucide-react";
 
 export default function UploadPage() {
@@ -30,11 +30,6 @@ export default function UploadPage() {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [cameraStatus, setCameraStatus] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [ocrRunning, setOcrRunning] = useState(false);
-  const [ocrText, setOcrText] = useState("");
-  const [ocrAmount, setOcrAmount] = useState("");
-  const [ocrDate, setOcrDate] = useState("");
-  const [ocrStore, setOcrStore] = useState("");
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -169,7 +164,6 @@ export default function UploadPage() {
         setFile(f);
         setPreview(URL.createObjectURL(blob));
         stopCamera();
-        runOCR(f);
       },
       "image/jpeg",
       0.9
@@ -193,64 +187,10 @@ export default function UploadPage() {
     setFile(f);
     if (f.type.startsWith("image/")) {
       setPreview(URL.createObjectURL(f));
-      runOCR(f);
     } else {
       setPreview(null);
     }
     if (!title) setTitle(f.name.replace(/\.[^.]+$/, ""));
-  };
-
-  const runOCR = async (imageFile: File) => {
-    setOcrRunning(true);
-    try {
-      // Dynamic import of Tesseract.js for OCR
-      const Tesseract = await import("tesseract.js");
-      const { data: { text } } = await Tesseract.recognize(imageFile, "swe+eng", {
-        logger: () => {},
-      });
-
-      setOcrText(text);
-
-      // Extract amount (look for patterns like 123,45 kr or SEK 123.45)
-      const amountMatch = text.match(/(\d{1,}[\s\u00a0]?\d{0,3}[.,]\d{2})\s*(?:kr|SEK|:-)?/i)
-        || text.match(/(?:TOTALT|Total|Summa|ATT BETALA|Kortbetalning)[:\s]*(\d{1,}[\s\u00a0]?\d{0,3}[.,]\d{2})/i);
-      if (amountMatch) {
-        setOcrAmount(amountMatch[1].replace(/\s/g, "").replace(".", ",") + " kr");
-      }
-
-      // Extract date
-      const dateMatch = text.match(/(\d{4}[-/.]\d{2}[-/.]\d{2})/)
-        || text.match(/(\d{2}[-/.]\d{2}[-/.]\d{4})/)
-        || text.match(/(\d{2}[-/.]\d{2}[-/.]\d{2})/);
-      if (dateMatch) {
-        setOcrDate(dateMatch[1]);
-      }
-
-      // Extract store name (usually first non-empty line)
-      const lines = text.split("\n").map((l: string) => l.trim()).filter((l: string) => l.length > 2);
-      if (lines.length > 0) {
-        setOcrStore(lines[0]);
-        if (!title) setTitle(lines[0]);
-      }
-
-      // Suggest category based on keywords
-      const lowerText = text.toLowerCase();
-      if (type === "receipt") {
-        if (/ica|coop|lidl|hemköp|willys|mat|livsmedel/.test(lowerText)) setCategory("Mat");
-        else if (/biltema|mekonomen|bensin|diesel|shell|preem|ingo/.test(lowerText)) setCategory("Bil");
-        else if (/bauhaus|jula|biltema|ikea|möbel|hem/.test(lowerText)) setCategory("Hem");
-        else if (/apotek|vårdcentral|tandläkare|recept/.test(lowerText)) setCategory("Hälsa");
-        else if (/elgiganten|media|teknik|elektronik/.test(lowerText)) setCategory("Elektronik");
-        else if (/hm|kappahl|lindex|kläder|mode/.test(lowerText)) setCategory("Kläder");
-      }
-
-      toast({ title: "OCR klart", description: "Text extraherad från bilden" });
-    } catch (err) {
-      console.error("OCR error:", err);
-      toast({ title: "OCR-fel", description: "Kunde inte läsa texten. Fyll i manuellt.", variant: "destructive" });
-    } finally {
-      setOcrRunning(false);
-    }
   };
 
   const handleUpload = async () => {
@@ -266,10 +206,6 @@ export default function UploadPage() {
         type,
         category,
         title: title || file.name,
-        ocrText: ocrText || undefined,
-        ocrAmount: ocrAmount || undefined,
-        ocrDate: ocrDate || undefined,
-        ocrStore: ocrStore || undefined,
       });
 
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
@@ -287,10 +223,6 @@ export default function UploadPage() {
   const reset = () => {
     setFile(null);
     setPreview(null);
-    setOcrText("");
-    setOcrAmount("");
-    setOcrDate("");
-    setOcrStore("");
     setTitle("");
     setCategory("");
   };
@@ -423,13 +355,6 @@ export default function UploadPage() {
                 <RotateCcw className="w-4 h-4" />
               </Button>
             </div>
-
-            {ocrRunning && (
-              <div className="flex items-center gap-2 mt-3 text-sm text-muted-foreground">
-                <ScanLine className="w-4 h-4 animate-pulse" />
-                <span>Läser text från bilden...</span>
-              </div>
-            )}
           </CardContent>
         </Card>
       )}
@@ -466,56 +391,10 @@ export default function UploadPage() {
               </Select>
             </div>
 
-            {type === "receipt" && (
-              <>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="amount">Belopp</Label>
-                    <Input
-                      id="amount"
-                      data-testid="input-amount"
-                      value={ocrAmount}
-                      onChange={(e) => setOcrAmount(e.target.value)}
-                      placeholder="123,45 kr"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="date">Datum</Label>
-                    <Input
-                      id="date"
-                      data-testid="input-date"
-                      value={ocrDate}
-                      onChange={(e) => setOcrDate(e.target.value)}
-                      placeholder="2026-03-15"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="store">Butik</Label>
-                  <Input
-                    id="store"
-                    data-testid="input-store"
-                    value={ocrStore}
-                    onChange={(e) => setOcrStore(e.target.value)}
-                    placeholder="ICA Maxi"
-                  />
-                </div>
-              </>
-            )}
-
-            {ocrText && (
-              <details className="text-xs">
-                <summary className="text-muted-foreground cursor-pointer">Visa OCR-text</summary>
-                <pre className="mt-2 p-2 bg-muted rounded text-[11px] whitespace-pre-wrap max-h-40 overflow-y-auto">
-                  {ocrText}
-                </pre>
-              </details>
-            )}
-
             <Button
               className="w-full"
               onClick={handleUpload}
-              disabled={uploading || ocrRunning}
+              disabled={uploading}
               data-testid="button-save"
             >
               {uploading ? (

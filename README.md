@@ -236,7 +236,6 @@ familj-dokument/
 |-----|--------|
 | Frontend | React, Tailwind CSS, shadcn/ui |
 | Backend | Express.js, Node.js |
-| OCR | Tesseract.js (körs i webbläsaren) |
 | Auth | bcryptjs + token-baserad session |
 | Realtid | WebSocket |
 | Export | JSZip (ZIP med CSV-sammanställning) |

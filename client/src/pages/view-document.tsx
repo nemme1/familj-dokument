@@ -9,7 +9,7 @@ import { authFetch, getFileUrl } from "@/lib/api";
 import { queryClient } from "@/lib/queryClient";
 import type { Document } from "@shared/schema";
 import {
-  ArrowLeft, Trash2, Calendar, DollarSign, Store,
+  ArrowLeft, Trash2,
   FileText, Tag, Clock
 } from "lucide-react";
 
@@ -92,33 +92,6 @@ export default function ViewDocumentPage() {
       {/* Metadata */}
       <Card>
         <CardContent className="py-4 space-y-3">
-          {doc.ocrAmount && (
-            <div className="flex items-center gap-3">
-              <DollarSign className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-              <div>
-                <p className="text-xs text-muted-foreground">Belopp</p>
-                <p className="text-sm font-medium tabular-nums" data-testid="text-amount">{doc.ocrAmount}</p>
-              </div>
-            </div>
-          )}
-          {doc.ocrDate && (
-            <div className="flex items-center gap-3">
-              <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-              <div>
-                <p className="text-xs text-muted-foreground">Datum</p>
-                <p className="text-sm font-medium">{doc.ocrDate}</p>
-              </div>
-            </div>
-          )}
-          {doc.ocrStore && (
-            <div className="flex items-center gap-3">
-              <Store className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-              <div>
-                <p className="text-xs text-muted-foreground">Butik</p>
-                <p className="text-sm font-medium">{doc.ocrStore}</p>
-              </div>
-            </div>
-          )}
           <div className="flex items-center gap-3">
             <Tag className="w-4 h-4 text-muted-foreground flex-shrink-0" />
             <div>
@@ -138,20 +111,6 @@ export default function ViewDocumentPage() {
           </div>
         </CardContent>
       </Card>
-
-      {/* OCR Text */}
-      {doc.ocrText && (
-        <Card>
-          <CardContent className="py-4">
-            <details>
-              <summary className="text-sm font-medium cursor-pointer">OCR-text</summary>
-              <pre className="mt-3 p-3 bg-muted rounded-lg text-xs whitespace-pre-wrap max-h-48 overflow-y-auto">
-                {doc.ocrText}
-              </pre>
-            </details>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Actions */}
       <Button

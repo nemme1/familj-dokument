@@ -176,9 +176,6 @@ export default function DashboardPage() {
                       <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                         {doc.category}
                       </Badge>
-                      {doc.ocrAmount && (
-                        <span className="text-[10px] text-muted-foreground font-medium tabular-nums">{doc.ocrAmount}</span>
-                      )}
                     </div>
                   </CardContent>
                 </Card>

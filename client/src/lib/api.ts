@@ -36,10 +36,6 @@ export async function uploadDocument(
     type: string;
     category: string;
     title: string;
-    ocrText?: string;
-    ocrAmount?: string;
-    ocrDate?: string;
-    ocrStore?: string;
   }
 ): Promise<any> {
   const token = getToken();
