@@ -45,6 +45,10 @@ sqlite.exec(`
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
+  CREATE INDEX IF NOT EXISTS idx_documents_user_id ON documents(user_id);
+  CREATE INDEX IF NOT EXISTS idx_documents_category ON documents(category);
+  CREATE INDEX IF NOT EXISTS idx_documents_title ON documents(title);
+  CREATE INDEX IF NOT EXISTS idx_documents_created_at ON documents(created_at);
 `);
 
 export interface IStorage {
@@ -73,30 +77,52 @@ export interface IStorage {
 
 export class SqliteStorage implements IStorage {
   // Users
+  private static handleDbError(err: unknown): never {
+    console.error("SQLite/Drizzle error", err);
+    throw new Error("Internal server error");
+  }
+
   async getUser(id: string): Promise<User | undefined> {
-    return db.select().from(users).where(eq(users.id, id)).get();
+    try {
+      return db.select().from(users).where(eq(users.id, id)).get();
+    } catch (err) {
+      SqliteStorage.handleDbError(err);
+    }
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    return db.select().from(users).where(eq(users.email, email)).get();
+    try {
+      return db.select().from(users).where(eq(users.email, email)).get();
+    } catch (err) {
+      SqliteStorage.handleDbError(err);
+    }
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const role = insertUser.role || "member";
-    return db.insert(users).values({ id, ...insertUser, role }).returning().get();
+    try {
+      const id = randomUUID();
+      const role = insertUser.role || "member";
+      return db.insert(users).values({ id, ...insertUser, role }).returning().get();
+    } catch (err) {
+      SqliteStorage.handleDbError(err);
+    }
   }
 
   async getUserCount(): Promise<number> {
-    const result = db.select({ count: sql<number>`count(*)` }).from(users).get();
-    return result?.count ?? 0;
+    try {
+      const result = db.select({ count: sql<number>`count(*)` }).from(users).get();
+      return result?.count ?? 0;
+    } catch (err) {
+      SqliteStorage.handleDbError(err);
+    }
   }
 
   // Documents
   async getDocuments(filters?: { type?: string; category?: string; deleted?: boolean; search?: string }): Promise<Document[]> {
-    const conditions: any[] = [];
+    try {
+      const conditions: any[] = [];
 
-    if (filters) {
+      if (filters) {
       if (filters.deleted !== undefined) {
         conditions.push(eq(documents.deleted, filters.deleted));
       } else {
@@ -126,27 +152,42 @@ export class SqliteStorage implements IStorage {
       : db.select().from(documents).orderBy(desc(documents.createdAt));
 
     return query.all();
+    } catch (err) {
+      SqliteStorage.handleDbError(err);
+    }
   }
 
   async getDocument(id: string): Promise<Document | undefined> {
-    return db.select().from(documents).where(eq(documents.id, id)).get();
+    try {
+      return db.select().from(documents).where(eq(documents.id, id)).get();
+    } catch (err) {
+      SqliteStorage.handleDbError(err);
+    }
   }
 
   async createDocument(insertDoc: InsertDocument): Promise<Document> {
-    const id = randomUUID();
-    return db.insert(documents).values({ id, ...insertDoc }).returning().get();
+    try {
+      const id = randomUUID();
+      return db.insert(documents).values({ id, ...insertDoc }).returning().get();
+    } catch (err) {
+      SqliteStorage.handleDbError(err);
+    }
   }
 
   async updateDocument(id: string, updates: Partial<Document>): Promise<Document | undefined> {
-    const existing = await this.getDocument(id);
-    if (!existing) return undefined;
+    try {
+      const existing = await this.getDocument(id);
+      if (!existing) return undefined;
 
-    const updatedFields: any = { ...updates, updatedAt: new Date().toISOString() };
-    // Remove id from updates to avoid conflicts
-    delete updatedFields.id;
+      const updatedFields: any = { ...updates, updatedAt: new Date().toISOString() };
+      // Remove id from updates to avoid conflicts
+      delete updatedFields.id;
 
-    db.update(documents).set(updatedFields).where(eq(documents.id, id)).run();
-    return this.getDocument(id);
+      db.update(documents).set(updatedFields).where(eq(documents.id, id)).run();
+      return this.getDocument(id);
+    } catch (err) {
+      SqliteStorage.handleDbError(err);
+    }
   }
 
   async softDeleteDocument(id: string): Promise<Document | undefined> {
@@ -170,25 +211,20 @@ export class SqliteStorage implements IStorage {
   }
 
   async getDocumentStats(): Promise<{ totalReceipts: number; totalDocuments: number; monthlyTotal: string; recentUploads: number }> {
-    const allDocs = await this.getDocuments({ deleted: false });
-    const receipts = allDocs.filter((d) => d.type === "receipt");
-    const docCount = allDocs.filter((d) => d.type === "document");
+    const totalReceipts = db.select({ count: sql<number>`count(*)` }).from(documents).where(and(eq(documents.deleted, false), eq(documents.type, "receipt"))).get()?.count ?? 0;
+    const totalDocuments = db.select({ count: sql<number>`count(*)` }).from(documents).where(and(eq(documents.deleted, false), eq(documents.type, "document"))).get()?.count ?? 0;
 
     const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const monthReceipts = receipts.filter((r) => new Date(r.createdAt) >= monthStart);
-    const monthlyAmount = monthReceipts.reduce((sum, r) => {
-      const amount = r.ocrAmount ? parseFloat(r.ocrAmount.replace(/[^\d.,]/g, "").replace(",", ".")) : 0;
-      return sum + (isNaN(amount) ? 0 : amount);
-    }, 0);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const recentUploads = allDocs.filter((d) => new Date(d.createdAt) >= weekAgo).length;
+    const monthlyTotal = db.select({ count: sql<number>`count(*)` }).from(documents).where(and(eq(documents.deleted, false), sql`created_at >= ${monthStart}`)).get()?.count ?? 0;
+    const recentUploads = db.select({ count: sql<number>`count(*)` }).from(documents).where(and(eq(documents.deleted, false), sql`created_at >= ${weekAgo}`)).get()?.count ?? 0;
 
     return {
-      totalReceipts: receipts.length,
-      totalDocuments: docCount.length,
-      monthlyTotal: monthlyAmount.toFixed(2),
+      totalReceipts,
+      totalDocuments,
+      monthlyTotal: String(monthlyTotal),
       recentUploads,
     };
   }
@@ -196,15 +232,20 @@ export class SqliteStorage implements IStorage {
   // File storage — files saved to disk
   async saveFile(id: string, buffer: Buffer): Promise<void> {
     const filePath = path.join(FILES_DIR, id);
-    fs.writeFileSync(filePath, buffer);
+    try {
+      fs.writeFileSync(filePath, buffer);
+    } catch (err) {
+      SqliteStorage.handleDbError(err);
+    }
   }
 
   async getFile(id: string): Promise<Buffer | undefined> {
     const filePath = path.join(FILES_DIR, id);
     try {
       return fs.readFileSync(filePath);
-    } catch {
-      return undefined;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+      SqliteStorage.handleDbError(err);
     }
   }
 
@@ -212,8 +253,10 @@ export class SqliteStorage implements IStorage {
     const filePath = path.join(FILES_DIR, id);
     try {
       fs.unlinkSync(filePath);
-    } catch {
-      // File might not exist — that's OK
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
+        SqliteStorage.handleDbError(err);
+      }
     }
   }
 }

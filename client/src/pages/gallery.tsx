@@ -159,9 +159,6 @@ export default function GalleryPage() {
                 <p className="text-[11px] font-medium truncate mt-1.5">{doc.title}</p>
                 <div className="flex items-center gap-1 mt-0.5">
                   <Badge variant="outline" className="text-[9px] px-1 py-0">{doc.category}</Badge>
-                  {doc.ocrAmount && (
-                    <span className="text-[9px] text-muted-foreground tabular-nums">{doc.ocrAmount}</span>
-                  )}
                 </div>
               </CardContent>
             </Card>

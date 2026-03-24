@@ -1,42 +1,90 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { loginSchema, registerSchema } from "@shared/schema";
+import { loginSchema, registerSchema, type Document } from "@shared/schema";
 import bcrypt from "bcryptjs";
 import multer from "multer";
 import { randomUUID } from "crypto";
 import JSZip from "jszip";
 import { WebSocketServer } from "ws";
+import path from "path";
+import fs from "fs";
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
+const MAX_FILE_SIZE = Number(process.env.MAX_FILE_SIZE || 20 * 1024 * 1024);
+const sessionsFilePath = path.join(process.cwd(), "data", "sessions.json");
 
-// Simple session tokens (in-memory)
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_FILE_SIZE } });
+
+// Session tokens persisted to disk (data/sessions.json) for restart resilience
 const sessions = new Map<string, string>(); // token -> userId
+
+if (fs.existsSync(sessionsFilePath)) {
+  try {
+    const raw = fs.readFileSync(sessionsFilePath, "utf8");
+    const loaded = JSON.parse(raw) as Record<string, string>;
+    Object.entries(loaded).forEach(([token, userId]) => sessions.set(token, userId));
+  } catch (err) {
+    console.error("Failed to read sessions file", err);
+  }
+}
+
+function saveSessionsToDisk() {
+  try {
+    fs.writeFileSync(sessionsFilePath, JSON.stringify(Object.fromEntries(sessions)), "utf8");
+  } catch (err) {
+    console.error("Failed to save sessions file", err);
+  }
+}
+
+function asyncHandler(fn: (req: AuthRequest, res: Response, next: NextFunction) => Promise<void>) {
+  return (req: AuthRequest, res: Response, next: NextFunction) => {
+    fn(req, res, next).catch(next);
+  };
+}
 
 function generateToken(): string {
   return randomUUID() + "-" + randomUUID();
 }
 
-function authMiddleware(req: Request, res: Response, next: NextFunction) {
+interface AuthRequest extends Request {
+  userId?: string;
+  requestedDoc?: Document;
+}
+
+function authMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
   const token = req.headers.authorization?.replace("Bearer ", "");
   if (!token || !sessions.has(token)) {
-    res.status(401).json({ error: "Ej autentiserad" });
+    res.status(401).json({ error: "Ej autentiserad", code: "UNAUTHORIZED" });
     return;
   }
-  (req as any).userId = sessions.get(token);
+  req.userId = sessions.get(token);
   next();
 }
 
-function fileAuthMiddleware(req: Request, res: Response, next: NextFunction) {
+function fileAuthMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
   let token = req.headers.authorization?.replace("Bearer ", "");
   if (!token) {
     token = req.query.token as string;
   }
   if (!token || !sessions.has(token)) {
-    res.status(401).json({ error: "Ej autentiserad" });
+    res.status(401).json({ error: "Ej autentiserad", code: "UNAUTHORIZED" });
     return;
   }
-  (req as any).userId = sessions.get(token);
+  req.userId = sessions.get(token);
+  next();
+}
+
+async function requireDocument(req: AuthRequest, res: Response, next: NextFunction) {
+  const doc = await storage.getDocument(req.params.id);
+  if (!doc || doc.deleted) {
+    res.status(404).json({ error: "Dokument hittades inte", code: "DOCUMENT_NOT_FOUND" });
+    return;
+  }
+  if (doc.userId !== req.userId) {
+    res.status(403).json({ error: "Åtkomst nekad", code: "FORBIDDEN" });
+    return;
+  }
+  req.requestedDoc = doc;
   next();
 }
 
@@ -58,185 +106,186 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   }
 
   // Auth routes
-  app.post("/api/auth/register", async (req: Request, res: Response) => {
-    try {
-      const parsed = registerSchema.parse(req.body);
-      const userCount = await storage.getUserCount();
+  app.post("/api/auth/register", asyncHandler(async (req: AuthRequest, res: Response) => {
+    const parsed = registerSchema.parse(req.body);
+    const userCount = await storage.getUserCount();
 
-      // Max 2 users
-      if (userCount >= 2) {
-        res.status(403).json({ error: "Max 2 användare tillåtna" });
-        return;
-      }
-
-      const existing = await storage.getUserByEmail(parsed.email);
-      if (existing) {
-        res.status(409).json({ error: "E-postadressen finns redan" });
-        return;
-      }
-
-      const hashedPassword = await bcrypt.hash(parsed.password, 10);
-      const role = userCount === 0 ? "admin" : "member";
-      const user = await storage.createUser({
-        email: parsed.email,
-        password: hashedPassword,
-        name: parsed.name,
-        role,
-      });
-
-      const token = generateToken();
-      sessions.set(token, user.id);
-
-      res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
-    } catch (err: any) {
-      res.status(400).json({ error: err.message || "Ogiltig data" });
+    // Max 2 users
+    if (userCount >= 2) {
+      res.status(403).json({ error: "Max 2 användare tillåtna", code: "MAX_USERS_REACHED" });
+      return;
     }
-  });
 
-  app.post("/api/auth/login", async (req: Request, res: Response) => {
-    try {
-      const parsed = loginSchema.parse(req.body);
-      const user = await storage.getUserByEmail(parsed.email);
-
-      if (!user || !(await bcrypt.compare(parsed.password, user.password))) {
-        res.status(401).json({ error: "Fel e-post eller lösenord" });
-        return;
-      }
-
-      const token = generateToken();
-      sessions.set(token, user.id);
-
-      res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
-    } catch (err: any) {
-      res.status(400).json({ error: err.message || "Ogiltig data" });
+    const existing = await storage.getUserByEmail(parsed.email);
+    if (existing) {
+      res.status(409).json({ error: "E-postadressen finns redan", code: "EMAIL_EXISTS" });
+      return;
     }
-  });
 
-  app.post("/api/auth/logout", (req: Request, res: Response) => {
+    const hashedPassword = await bcrypt.hash(parsed.password, 10);
+    const role = userCount === 0 ? "admin" : "member";
+    const user = await storage.createUser({
+      email: parsed.email,
+      password: hashedPassword,
+      name: parsed.name,
+      role,
+    });
+
+    const token = generateToken();
+    sessions.set(token, user.id);
+    saveSessionsToDisk();
+
+    res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
+  }));
+
+  app.post("/api/auth/login", asyncHandler(async (req: AuthRequest, res: Response) => {
+    const parsed = loginSchema.parse(req.body);
+    const user = await storage.getUserByEmail(parsed.email);
+
+    if (!user || !(await bcrypt.compare(parsed.password, user.password))) {
+      res.status(401).json({ error: "Fel e-post eller lösenord", code: "INVALID_CREDENTIALS" });
+      return;
+    }
+
+    const token = generateToken();
+    sessions.set(token, user.id);
+    saveSessionsToDisk();
+
+    res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
+  }));
+
+  app.post("/api/auth/logout", asyncHandler(async (req: AuthRequest, res: Response) => {
     const token = req.headers.authorization?.replace("Bearer ", "");
-    if (token) sessions.delete(token);
+    if (token) {
+      sessions.delete(token);
+      saveSessionsToDisk();
+    }
     res.json({ ok: true });
-  });
+  }));
 
-  app.get("/api/auth/me", authMiddleware, async (req: Request, res: Response) => {
-    const user = await storage.getUser((req as any).userId);
-    if (!user) { res.status(404).json({ error: "Användare hittades inte" }); return; }
+  app.get("/api/auth/me", authMiddleware, asyncHandler(async (req: AuthRequest, res: Response) => {
+    const user = await storage.getUser(req.userId!);
+    if (!user) {
+      res.status(404).json({ error: "Användare hittades inte", code: "USER_NOT_FOUND" });
+      return;
+    }
     res.json({ id: user.id, email: user.email, name: user.name, role: user.role });
-  });
+  }));
 
   // Document routes
-  app.get("/api/documents", authMiddleware, async (req: Request, res: Response) => {
+  app.get("/api/documents", authMiddleware, asyncHandler(async (req: AuthRequest, res: Response) => {
     const { type, category, search } = req.query as any;
     const docs = await storage.getDocuments({ type, category, search, deleted: false });
     res.json(docs);
-  });
+  }));
 
-  app.get("/api/documents/stats", authMiddleware, async (_req: Request, res: Response) => {
+  app.get("/api/documents/stats", authMiddleware, asyncHandler(async (_req: AuthRequest, res: Response) => {
     const stats = await storage.getDocumentStats();
     res.json(stats);
-  });
+  }));
 
-  app.get("/api/documents/trash", authMiddleware, async (_req: Request, res: Response) => {
+  app.get("/api/documents/trash", authMiddleware, asyncHandler(async (_req: AuthRequest, res: Response) => {
     const docs = await storage.getTrashDocuments();
     res.json(docs);
-  });
+  }));
 
-  app.get("/api/documents/:id", authMiddleware, async (req: Request, res: Response) => {
+  app.get("/api/documents/:id", authMiddleware, requireDocument, asyncHandler(async (req: AuthRequest, res: Response) => {
     const doc = await storage.getDocument(req.params.id);
-    if (!doc || doc.deleted) { res.status(404).json({ error: "Dokument hittades inte" }); return; }
-    if (doc.userId !== (req as any).userId) { res.status(403).json({ error: "Åtkomst nekad" }); return; }
     res.json(doc);
-  });
+  }));
 
-  app.post("/api/documents", authMiddleware, upload.single("file"), async (req: Request, res: Response) => {
-    try {
-      if (!req.file) { res.status(400).json({ error: "Ingen fil bifogad" }); return; }
-
-      const now = new Date().toISOString();
-      const docId = randomUUID();
-
-      const doc = await storage.createDocument({
-        userId: (req as any).userId,
-        type: req.body.type || "receipt",
-        category: req.body.category || "Övrigt",
-        title: req.body.title || req.file.originalname,
-        fileName: req.file.originalname,
-        fileSize: req.file.size,
-        mimeType: req.file.mimetype,
-        deleted: false,
-        deletedAt: null,
-        createdAt: now,
-        updatedAt: now,
-      });
-
-      await storage.saveFile(doc.id, req.file.buffer);
-      broadcast("document:created", doc);
-      res.json(doc);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message || "Kunde inte spara dokumentet" });
+  app.post("/api/documents", authMiddleware, upload.single("file"), asyncHandler(async (req: AuthRequest, res: Response) => {
+    if (!req.file) {
+      res.status(400).json({ error: "Ingen fil bifogad", code: "NO_FILE" });
+      return;
     }
-  });
 
-  app.patch("/api/documents/:id", authMiddleware, async (req: Request, res: Response) => {
-    const doc = await storage.getDocument(req.params.id);
-    if (!doc || doc.deleted) { res.status(404).json({ error: "Dokument hittades inte" }); return; }
-    if (doc.userId !== (req as any).userId) { res.status(403).json({ error: "Åtkomst nekad" }); return; }
+    const now = new Date().toISOString();
+
+    const doc = await storage.createDocument({
+      userId: req.userId!,
+      type: req.body.type || "receipt",
+      category: req.body.category || "Övrigt",
+      title: req.body.title || req.file.originalname,
+      fileName: req.file.originalname,
+      fileSize: req.file.size,
+      mimeType: req.file.mimetype,
+      deleted: false,
+      deletedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await storage.saveFile(doc.id, req.file.buffer);
+    broadcast("document:created", doc);
+    res.json(doc);
+  }));
+
+  app.patch("/api/documents/:id", authMiddleware, requireDocument, asyncHandler(async (req: AuthRequest, res: Response) => {
     const updated = await storage.updateDocument(req.params.id, req.body);
-    if (!updated) { res.status(404).json({ error: "Dokument hittades inte" }); return; }
+    if (!updated) {
+      res.status(404).json({ error: "Dokument hittades inte", code: "DOCUMENT_NOT_FOUND" });
+      return;
+    }
     broadcast("document:updated", updated);
     res.json(updated);
-  });
+  }));
 
-  app.delete("/api/documents/:id", authMiddleware, async (req: Request, res: Response) => {
-    const doc = await storage.getDocument(req.params.id);
-    if (!doc || doc.deleted) { res.status(404).json({ error: "Dokument hittades inte" }); return; }
-    if (doc.userId !== (req as any).userId) { res.status(403).json({ error: "Åtkomst nekad" }); return; }
+  app.delete("/api/documents/:id", authMiddleware, requireDocument, asyncHandler(async (req: AuthRequest, res: Response) => {
     const deleted = await storage.softDeleteDocument(req.params.id);
-    if (!deleted) { res.status(404).json({ error: "Dokument hittades inte" }); return; }
+    if (!deleted) {
+      res.status(404).json({ error: "Dokument hittades inte", code: "DOCUMENT_NOT_FOUND" });
+      return;
+    }
     broadcast("document:deleted", deleted);
     res.json(deleted);
-  });
+  }));
 
-  app.post("/api/documents/:id/restore", authMiddleware, async (req: Request, res: Response) => {
-    const doc = await storage.getDocument(req.params.id);
-    if (!doc || !doc.deleted) { res.status(404).json({ error: "Dokument hittades inte" }); return; }
-    if (doc.userId !== (req as any).userId) { res.status(403).json({ error: "Åtkomst nekad" }); return; }
+  app.post("/api/documents/:id/restore", authMiddleware, requireDocument, asyncHandler(async (req: AuthRequest, res: Response) => {
     const restored = await storage.restoreDocument(req.params.id);
-    if (!restored) { res.status(404).json({ error: "Dokument hittades inte" }); return; }
+    if (!restored) {
+      res.status(404).json({ error: "Dokument hittades inte", code: "DOCUMENT_NOT_FOUND" });
+      return;
+    }
     broadcast("document:restored", restored);
     res.json(restored);
-  });
+  }));
 
-  app.delete("/api/documents/:id/permanent", authMiddleware, async (req: Request, res: Response) => {
-    const doc = await storage.getDocument(req.params.id);
-    if (!doc) { res.status(404).json({ error: "Dokument hittades inte" }); return; }
-    if (doc.userId !== (req as any).userId) { res.status(403).json({ error: "Åtkomst nekad" }); return; }
+  app.delete("/api/documents/:id/permanent", authMiddleware, requireDocument, asyncHandler(async (req: AuthRequest, res: Response) => {
     const deleted = await storage.permanentlyDeleteDocument(req.params.id);
-    if (!deleted) { res.status(404).json({ error: "Dokument hittades inte" }); return; }
+    if (!deleted) {
+      res.status(404).json({ error: "Dokument hittades inte", code: "DOCUMENT_NOT_FOUND" });
+      return;
+    }
     broadcast("document:permanentlyDeleted", { id: req.params.id });
     res.json({ ok: true });
-  });
+  }));
 
   // File download
-  app.get("/api/files/:id", fileAuthMiddleware, async (req: Request, res: Response) => {
+  app.get("/api/files/:id", fileAuthMiddleware, asyncHandler(async (req: AuthRequest, res: Response) => {
     const doc = await storage.getDocument(req.params.id);
-    if (!doc || doc.deleted) { res.status(404).json({ error: "Dokument hittades inte" }); return; }
-
-    if (doc.userId !== (req as any).userId) {
-      res.status(403).json({ error: "Åtkomst nekad" });
+    if (!doc || doc.deleted) {
+      res.status(404).json({ error: "Dokument hittades inte", code: "DOCUMENT_NOT_FOUND" });
+      return;
+    }
+    if (doc.userId !== req.userId) {
+      res.status(403).json({ error: "Åtkomst nekad", code: "FORBIDDEN" });
       return;
     }
 
     const file = await storage.getFile(doc.id);
-    if (!file) { res.status(404).json({ error: "Fil hittades inte" }); return; }
+    if (!file) {
+      res.status(404).json({ error: "Fil hittades inte", code: "FILE_NOT_FOUND" });
+      return;
+    }
 
     res.set("Content-Type", doc.mimeType);
     res.set("Content-Disposition", `inline; filename="${doc.fileName}"`);
     res.send(file);
-  });
+  }));
 
   // Export as ZIP
-  app.get("/api/export", authMiddleware, async (req: Request, res: Response) => {
+  app.get("/api/export", authMiddleware, asyncHandler(async (req: AuthRequest, res: Response) => {
     const { type, category } = req.query as any;
     const docs = await storage.getDocuments({ type, category, deleted: false });
 
@@ -249,23 +298,17 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       }
     }
 
-    // Add CSV summary for receipts
-    if (!type || type === "receipt") {
-      const receipts = docs.filter((d) => d.type === "receipt");
-      if (receipts.length > 0) {
-        let csv = "Titel,Kategori,Belopp,Datum,Butik,Skapad\n";
-        receipts.forEach((r) => {
-          csv += `"${r.title}","${r.category}","${r.ocrAmount || ""}","${r.ocrDate || ""}","${r.ocrStore || ""}","${r.createdAt}"\n`;
-        });
-        zip.file("kvitton_sammanställning.csv", csv);
-      }
+    // Add CSV summary
+    const csvRows = docs.map((d) => `"${d.title}","${d.category}","${d.createdAt}"\n`);
+    if (csvRows.length > 0) {
+      zip.file("dokument_sammanstallning.csv", "Titel,Kategori,Skapad\n" + csvRows.join(""));
     }
 
     const content = await zip.generateAsync({ type: "nodebuffer" });
     res.set("Content-Type", "application/zip");
-    res.set("Content-Disposition", `attachment; filename="export_${new Date().toISOString().slice(0, 10)}.zip"`);
+    res.set("Content-Disposition", "attachment; filename=documents.zip");
     res.send(content);
-  });
+  }));
 
   return httpServer;
 }

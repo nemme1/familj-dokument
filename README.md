@@ -1,6 +1,6 @@
 # FamiljDokument — Säkert dokumentarkiv för familjen
 
-Lagra kvitton och viktiga dokument säkert. OCR-textigenkänning, sök, export och realtids-sync mellan enheter.
+Lagra kvitton och viktiga dokument säkert. Sök, export och realtids-sync mellan enheter.
 
 ---
 

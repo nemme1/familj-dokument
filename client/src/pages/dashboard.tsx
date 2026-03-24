@@ -52,7 +52,7 @@ export default function DashboardPage() {
           <Card className="hover-elevate cursor-pointer border border-primary/20 bg-primary/5 transition-colors hover:bg-primary/10">
             <CardContent className="flex flex-col items-center justify-center py-6 px-3">
               <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-3">
-                <Receipt className="w-6 h-6 text-primary" />
+                <Receipt className="w-5 h-5 text-primary" />
               </div>
               <span className="font-medium text-sm" data-testid="button-new-receipt">Nytt kvitto</span>
             </CardContent>
@@ -62,7 +62,7 @@ export default function DashboardPage() {
           <Card className="hover-elevate cursor-pointer border border-chart-2/20 bg-chart-2/5 transition-colors hover:bg-chart-2/10">
             <CardContent className="flex flex-col items-center justify-center py-6 px-3">
               <div className="w-12 h-12 rounded-xl bg-chart-2/10 flex items-center justify-center mb-3">
-                <FileText className="w-6 h-6 text-[hsl(var(--chart-2))]" />
+                <FileText className="w-5 h-5 text-[hsl(var(--chart-2))]" />
               </div>
               <span className="font-medium text-sm" data-testid="button-new-document">Nytt dokument</span>
             </CardContent>
@@ -99,10 +99,10 @@ export default function DashboardPage() {
             <Card>
               <CardContent className="py-4">
                 <div className="flex items-center gap-2 mb-1">
-                  <TrendingUp className="w-4 h-4 text-[hsl(var(--chart-3))]" />
-                  <span className="text-lg font-semibold tabular-nums whitespace-nowrap" data-testid="text-monthly-total">{stats?.monthlyTotal || "0"} kr</span>
+                  <TrendingUp className="w-5 h-5 text-[hsl(var(--chart-3))]" />
+                  <span className="text-lg font-semibold tabular-nums whitespace-nowrap" data-testid="text-monthly-total">{stats?.monthlyTotal || "0"}</span>
                 </div>
-                <p className="text-xs text-muted-foreground">Denna månad</p>
+                <p className="text-xs text-muted-foreground">Denna månad (uppladdningar)</p>
               </CardContent>
             </Card>
             <Card>
