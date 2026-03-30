@@ -1,7 +1,7 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { getToken } from "./auth";
 
-const API_BASE = typeof window !== "undefined" ? window.location.origin : "__PORT_5000__".startsWith("__") ? "" : "__PORT_5000__";
+const API_BASE = typeof window !== "undefined" ? "https://familj-dokument-production.up.railway.app" : "__PORT_5000__".startsWith("__") ? "" : "__PORT_5000__";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
