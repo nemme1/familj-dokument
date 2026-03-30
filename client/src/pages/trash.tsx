@@ -11,6 +11,7 @@ import { Trash2, RotateCcw, FileText, AlertTriangle } from "lucide-react";
 
 export default function TrashPage() {
   const { toast } = useToast();
+  const [selectedDocs, setSelectedDocs] = useState<Set<string>>(new Set());
 
   const { data: trashDocs, isLoading } = useQuery<Document[]>({
     queryKey: ["/api/documents/trash"],
@@ -42,6 +43,41 @@ export default function TrashPage() {
     },
   });
 
+  const bulkRestoreMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      await Promise.all(ids.map(id => 
+        authFetch(`/api/documents/${id}/restore`, { method: "POST" })
+      ));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/documents/trash"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/documents/stats"] });
+      toast({ title: "Återställda", description: `${selectedDocs.size} dokument har återställts` });
+      setSelectedDocs(new Set());
+    },
+  });
+
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedDocs);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedDocs(newSelected);
+  };
+
+  const selectAll = () => {
+    if (trashDocs) {
+      setSelectedDocs(new Set(trashDocs.map(doc => doc.id)));
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedDocs(new Set());
+  };
+
   const getDaysLeft = (deletedAt: string | null) => {
     if (!deletedAt) return 30;
     const deleted = new Date(deletedAt);
@@ -51,15 +87,54 @@ export default function TrashPage() {
   };
 
   return (
-    <div className="space-y-4 pb-24">
+    <div className="space-y-6 pb-24">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight flex items-center gap-2">
-          <Trash2 className="w-5 h-5" /> Papperskorg
+        <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
+          <Trash2 className="w-6 h-6" /> Papperskorg
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-muted-foreground mt-1">
           Dokument raderas permanent efter 30 dagar
         </p>
       </div>
+
+      {/* Bulk actions */}
+      {selectedDocs.size > 0 && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="py-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">
+                {selectedDocs.size} dokument valda
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={clearSelection}
+                >
+                  Avmarkera
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => bulkRestoreMutation.mutate(Array.from(selectedDocs))}
+                  disabled={bulkRestoreMutation.isPending}
+                >
+                  <RotateCcw className="w-4 h-4 mr-1" />
+                  Återställ alla
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Select all */}
+      {trashDocs && trashDocs.length > 1 && selectedDocs.size === 0 && (
+        <div className="flex justify-end">
+          <Button variant="ghost" size="sm" onClick={selectAll}>
+            Välj alla
+          </Button>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="space-y-3">
@@ -68,51 +143,55 @@ export default function TrashPage() {
           ))}
         </div>
       ) : trashDocs && trashDocs.length > 0 ? (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {trashDocs.map((doc) => {
             const daysLeft = getDaysLeft(doc.deletedAt);
             return (
               <Card key={doc.id} className="overflow-hidden" data-testid={`card-trash-${doc.id}`}>
-                <CardContent className="p-3 flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-lg bg-muted flex-shrink-0 overflow-hidden flex items-center justify-center">
+                <CardContent className="p-4 flex items-center gap-4">
+                  <input
+                    type="checkbox"
+                    checked={selectedDocs.has(doc.id)}
+                    onChange={() => toggleSelect(doc.id)}
+                    className="w-5 h-5 rounded border-2 border-muted-foreground data-[checked]:bg-primary data-[checked]:border-primary"
+                  />
+                  <div className="w-14 h-14 rounded-lg bg-muted flex-shrink-0 overflow-hidden flex items-center justify-center">
                     {doc.mimeType.startsWith("image/") ? (
                       <img src={getFileUrl(doc.id)} alt="" className="w-full h-full object-cover" crossOrigin="anonymous" />
                     ) : (
-                      <FileText className="w-5 h-5 text-muted-foreground" />
+                      <FileText className="w-6 h-6 text-muted-foreground" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{doc.title}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <Badge variant="outline" className="text-[10px] px-1 py-0">{doc.category}</Badge>
-                      <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                        <AlertTriangle className="w-2.5 h-2.5" />
+                    <p className="text-sm font-medium truncate mb-1">{doc.title}</p>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs">{doc.category}</Badge>
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" />
                         {daysLeft} dagar kvar
                       </span>
                     </div>
                   </div>
-                  <div className="flex gap-1.5">
+                  <div className="flex gap-2">
                     <Button
                       variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
+                      size="sm"
+                      className="h-9 w-9 p-0"
                       onClick={() => restoreMutation.mutate(doc.id)}
                       disabled={restoreMutation.isPending}
-                      data-testid={`button-restore-${doc.id}`}
                       title="Återställ"
                     >
-                      <RotateCcw className="w-3.5 h-3.5" />
+                      <RotateCcw className="w-4 h-4" />
                     </Button>
                     <Button
                       variant="destructive"
-                      size="icon"
-                      className="h-8 w-8"
+                      size="sm"
+                      className="h-9 w-9 p-0"
                       onClick={() => permanentDeleteMutation.mutate(doc.id)}
                       disabled={permanentDeleteMutation.isPending}
-                      data-testid={`button-permanent-delete-${doc.id}`}
                       title="Radera permanent"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
                 </CardContent>

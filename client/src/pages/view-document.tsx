@@ -9,8 +9,8 @@ import { authFetch, getFileUrl } from "@/lib/api";
 import { queryClient } from "@/lib/queryClient";
 import type { Document } from "@shared/schema";
 import {
-  ArrowLeft, Trash2,
-  FileText, Tag, Clock
+  ArrowLeft, Trash2, Download,
+  FileText, Tag, Clock, ZoomIn
 } from "lucide-react";
 
 export default function ViewDocumentPage() {
@@ -37,6 +37,22 @@ export default function ViewDocumentPage() {
       setLocation("/");
     },
   });
+
+  const handleDownload = async () => {
+    try {
+      const res = await authFetch(`/api/files/${params.id}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = doc?.fileName || "document";
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "Nedladdat", description: "Filen har sparats" });
+    } catch (err: any) {
+      toast({ title: "Nedladdningsfel", description: err.message, variant: "destructive" });
+    }
+  };
 
   if (isLoading) {
     return (
@@ -113,16 +129,26 @@ export default function ViewDocumentPage() {
       </Card>
 
       {/* Actions */}
-      <Button
-        variant="destructive"
-        className="w-full"
-        onClick={() => deleteMutation.mutate()}
-        disabled={deleteMutation.isPending}
-        data-testid="button-delete"
-      >
-        <Trash2 className="w-4 h-4 mr-2" />
-        Flytta till papperskorgen
-      </Button>
+      <div className="flex gap-3">
+        <Button
+          variant="outline"
+          className="flex-1 h-12"
+          onClick={handleDownload}
+        >
+          <Download className="w-4 h-4 mr-2" />
+          Ladda ner
+        </Button>
+        <Button
+          variant="destructive"
+          className="flex-1 h-12"
+          onClick={() => deleteMutation.mutate()}
+          disabled={deleteMutation.isPending}
+          data-testid="button-delete"
+        >
+          <Trash2 className="w-4 h-4 mr-2" />
+          Ta bort
+        </Button>
+      </div>
     </div>
   );
 }

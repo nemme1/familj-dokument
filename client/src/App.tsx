@@ -18,34 +18,40 @@ import {
   Home, Images, Upload, Trash2, Sun, Moon, LogOut,
   ShieldCheck, Menu, X
 } from "lucide-react";
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import { useOfflineStatus } from "@/hooks/use-offline";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Wifi, WifiOff } from "lucide-react";
 
 function MobileNav() {
   const [location] = useLocation();
 
   const navItems = [
     { href: "/", icon: Home, label: "Hem" },
-    { href: "/upload", icon: Upload, label: "Ladda upp" },
-    { href: "/gallery", icon: Images, label: "Galleri" },
-    { href: "/trash", icon: Trash2, label: "Papperskorg" },
+    { href: "/upload", icon: Upload, label: "Lägg till" },
+    { href: "/gallery", icon: Images, label: "Dokument" },
+    { href: "/trash", icon: Trash2, label: "Korg" },
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border mobile-nav" data-testid="nav-mobile">
-      <div className="flex items-center justify-around h-14 max-w-lg mx-auto">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-lg border-t border-border md:hidden safe-area-inset-bottom" data-testid="nav-mobile">
+      <div className="flex items-center justify-around py-3 px-4">
         {navItems.map((item) => {
-          const isActive = location === item.href || (item.href === "/upload" && location.startsWith("/upload"));
+          const isActive = location === item.href || 
+            (item.href === "/" && location === "/") ||
+            (item.href === "/gallery" && location === "/gallery") ||
+            (item.href === "/upload" && location.startsWith("/upload"));
           return (
             <Link key={item.href} href={item.href}>
               <button
-                className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-lg transition-colors ${
-                  isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                className={`flex flex-col items-center gap-1 py-2 px-4 rounded-xl transition-all duration-200 min-h-[48px] ${
+                  isActive 
+                    ? "text-primary bg-primary/10" 
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                 }`}
-                data-testid={`nav-${item.label.toLowerCase()}`}
+                data-testid={`nav-${item.label.toLowerCase().replace(" ", "-")}`}
               >
                 <item.icon className="w-5 h-5" />
-                <span className="text-[10px] font-medium">{item.label}</span>
+                <span className="text-xs font-medium">{item.label}</span>
               </button>
             </Link>
           );
@@ -103,9 +109,19 @@ function Header() {
 }
 
 function AuthenticatedLayout() {
+  const isOnline = useOfflineStatus();
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
+      {!isOnline && (
+        <Alert className="border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-200">
+          <WifiOff className="h-4 w-4" />
+          <AlertDescription>
+            Du är offline. Vissa funktioner kanske inte fungerar förrän du är online igen.
+          </AlertDescription>
+        </Alert>
+      )}
       <main className="flex-1 px-4 py-4 max-w-2xl mx-auto w-full">
         <Switch>
           <Route path="/" component={DashboardPage} />

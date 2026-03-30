@@ -7,10 +7,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { authFetch, getFileUrl } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 import { useAuth } from "@/hooks/use-auth";
-import {
-  Receipt, FileText, TrendingUp, Upload,
-  Camera, Plus, ArrowRight
-} from "lucide-react";
 import type { Document } from "@shared/schema";
 
 export default function DashboardPage() {

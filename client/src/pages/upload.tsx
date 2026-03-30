@@ -228,98 +228,133 @@ export default function UploadPage() {
   };
 
   return (
-    <div className="space-y-4 pb-24">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">
+    <div className="space-y-6 pb-24">
+      {/* Header with clear CTA */}
+      <div className="text-center space-y-2">
+        <h1 className="text-2xl font-semibold tracking-tight">
           {type === "receipt" ? "Nytt kvitto" : "Nytt dokument"}
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Ta ett foto eller ladda upp en fil
+        <p className="text-muted-foreground">
+          Ta ett foto eller ladda upp från galleriet
         </p>
       </div>
 
-      {/* Type toggle */}
-      <div className="flex gap-2">
+      {/* Quick type selection - simplified */}
+      <div className="flex gap-2 justify-center">
         <Button
           variant={type === "receipt" ? "default" : "outline"}
-          size="sm"
+          size="lg"
           onClick={() => setType("receipt")}
+          className="flex-1 h-12"
           data-testid="button-type-receipt"
         >
+          <Receipt className="w-5 h-5 mr-2" />
           Kvitto
         </Button>
         <Button
           variant={type === "document" ? "default" : "outline"}
-          size="sm"
+          size="lg"
           onClick={() => setType("document")}
+          className="flex-1 h-12"
           data-testid="button-type-document"
         >
+          <FileText className="w-5 h-5 mr-2" />
           Dokument
         </Button>
       </div>
 
       {/* Camera / Preview */}
       {showCamera ? (
-        <Card>
-          <CardContent className="p-3">
-            <div className="relative rounded-lg overflow-hidden bg-black min-h-[250px]">
+        <Card className="overflow-hidden">
+          <CardContent className="p-0">
+            <div className="relative bg-black min-h-[60vh] flex flex-col">
               <video
                 ref={videoRef}
                 autoPlay
                 playsInline
                 muted
-                className="w-full h-full min-h-[250px] object-cover"
+                className="flex-1 w-full object-cover"
               />
               <canvas ref={canvasRef} className="hidden" />
 
-                      {cameraLoading && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 text-white text-sm p-3">
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Startar kamera…</span>
-                  </div>
+              {/* Camera controls overlay */}
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-6">
+                <div className="flex justify-center items-center gap-8">
+                  <Button 
+                    size="lg" 
+                    variant="secondary" 
+                    onClick={stopCamera}
+                    className="w-12 h-12 rounded-full"
+                    data-testid="button-cancel-camera"
+                  >
+                    <X className="w-6 h-6" />
+                  </Button>
+                  
+                  <Button 
+                    size="lg" 
+                    onClick={capturePhoto} 
+                    className="w-16 h-16 rounded-full bg-white text-black hover:bg-white/90"
+                    data-testid="button-capture"
+                  >
+                    <Camera className="w-7 h-7" />
+                  </Button>
                 </div>
-              )}
-
-              <div className="absolute top-2 left-2 right-2">
-                {cameraError && (
-                  <div className="text-center text-xs text-red-300 bg-red-950/60 rounded p-1">
-                    {cameraError}
-                  </div>
+                
+                {cameraStatus && (
+                  <p className="text-center text-white/80 text-sm mt-4">
+                    {cameraStatus}
+                  </p>
                 )}
               </div>
 
-              <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-4">
-                <Button size="lg" variant="secondary" onClick={stopCamera} data-testid="button-cancel-camera">
-                  <X className="w-5 h-5" />
-                </Button>
-                <Button size="lg" onClick={capturePhoto} className="w-16 h-16 rounded-full" data-testid="button-capture">
-                  <Camera className="w-6 h-6" />
-                </Button>
-              </div>
+              {cameraLoading && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 text-white">
+                  <Loader2 className="w-8 h-8 animate-spin mb-2" />
+                  <span>Startar kamera…</span>
+                </div>
+              )}
+
+              {cameraError && (
+                <div className="absolute top-4 left-4 right-4 bg-red-500/90 text-white p-3 rounded-lg">
+                  <p className="text-sm">{cameraError}</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
       ) : !file ? (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-4">
+          {/* Primary CTA: Take Photo */}
           <Card
-            className="hover-elevate cursor-pointer"
+            className="hover-elevate cursor-pointer border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10"
             onClick={startCamera}
             data-testid="button-open-camera"
           >
-            <CardContent className="flex flex-col items-center justify-center py-8">
-              <Camera className="w-10 h-10 text-primary mb-2" />
-              <span className="text-sm font-medium">Ta foto</span>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                <Camera className="w-8 h-8 text-primary" />
+              </div>
+              <h3 className="text-lg font-semibold mb-1">Ta foto</h3>
+              <p className="text-sm text-muted-foreground text-center">
+                Använd kameran för att fota {type === "receipt" ? "kvittot" : "dokumentet"}
+              </p>
             </CardContent>
           </Card>
+
+          {/* Secondary CTA: Upload from Gallery */}
           <Card
             className="hover-elevate cursor-pointer"
             onClick={() => fileInputRef.current?.click()}
             data-testid="button-upload-file"
           >
-            <CardContent className="flex flex-col items-center justify-center py-8">
-              <Upload className="w-10 h-10 text-[hsl(var(--chart-2))] mb-2" />
-              <span className="text-sm font-medium">Ladda upp</span>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mb-4">
+                <Upload className="w-8 h-8 text-secondary-foreground" />
+              </div>
+              <h3 className="text-lg font-semibold mb-1">Välj från galleriet</h3>
+              <p className="text-sm text-muted-foreground text-center">
+                Ladda upp befintligt foto eller PDF
+              </p>
             </CardContent>
           </Card>
           <input
@@ -362,53 +397,65 @@ export default function UploadPage() {
       {/* OCR Results & Form */}
       {file && (
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Detaljer</CardTitle>
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg">Spara {type === "receipt" ? "kvitto" : "dokument"}</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Kontrollera uppgifterna och spara
+            </p>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="title">Titel</Label>
+          <CardContent className="space-y-6">
+            <div className="space-y-3">
+              <Label htmlFor="title" className="text-sm font-medium">Titel</Label>
               <Input
                 id="title"
                 data-testid="input-title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="T.ex. ICA Maxi 2026-03-15"
+                placeholder={`T.ex. ${type === "receipt" ? "ICA Maxi" : "Passkopia"}`}
+                className="h-12"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label>Kategori</Label>
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Kategori</Label>
               <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger data-testid="select-category">
+                <SelectTrigger className="h-12" data-testid="select-category">
                   <SelectValue placeholder="Välj kategori" />
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                    <SelectItem key={c} value={c} className="h-10">{c}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            <Button
-              className="w-full"
-              onClick={handleUpload}
-              disabled={uploading}
-              data-testid="button-save"
-            >
-              {uploading ? (
-                <span className="flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Sparar...
-                </span>
-              ) : (
-                <span className="flex items-center gap-2">
-                  <Check className="w-4 h-4" />
-                  Spara {type === "receipt" ? "kvitto" : "dokument"}
-                </span>
+            <div className="pt-2">
+              <Button
+                className="w-full h-12 text-base font-medium"
+                onClick={handleUpload}
+                disabled={uploading || !category.trim()}
+                data-testid="button-save"
+              >
+                {uploading ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Sparar...
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <Check className="w-5 h-5" />
+                    Spara {type === "receipt" ? "kvitto" : "dokument"}
+                  </span>
+                )}
+              </Button>
+              
+              {!category.trim() && (
+                <p className="text-xs text-muted-foreground mt-2 text-center">
+                  Välj en kategori för att fortsätta
+                </p>
               )}
-            </Button>
+            </div>
           </CardContent>
         </Card>
       )}
