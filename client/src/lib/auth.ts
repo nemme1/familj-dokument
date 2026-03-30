@@ -42,15 +42,26 @@ function notify() {
 }
 
 export async function login(email: string, password: string): Promise<AuthUser> {
+  console.log("🔐 Login attempt for:", email);
+  console.log("🌐 Making login request to:", `${API_BASE}/api/auth/login`);
   const res = await apiRequest("POST", "/api/auth/login", { email, password });
+  console.log("📡 Login response status:", res.status);
   const data = await res.json();
+  console.log("📦 Login response data:", data);
+
   authToken = data.token;
   currentUser = data.user;
+  console.log("💾 Setting auth state - token:", !!authToken, "user:", !!currentUser);
+
   if (typeof window !== "undefined") {
     localStorage.setItem("authToken", authToken);
     localStorage.setItem("authUser", JSON.stringify(currentUser));
+    console.log("💾 Saved to localStorage");
   }
+
+  console.log("📡 Notifying subscribers...");
   notify();
+  console.log("✅ Login successful");
   return data.user;
 }
 
@@ -81,22 +92,37 @@ export async function logout() {
 }
 
 export async function checkAuth(): Promise<AuthUser | null> {
-  if (!authToken) return null;
+  console.log("🔍 checkAuth called");
+  if (!authToken) {
+    console.log("❌ No auth token");
+    return null;
+  }
+
+  console.log("🌐 Making auth check request to:", `${API_BASE}/api/auth/me`);
   try {
-    const res = await fetch("/api/auth/me", {
+    const res = await fetch(`${API_BASE}/api/auth/me`, {
       headers: { Authorization: `Bearer ${authToken}` },
     });
+    console.log("📡 Auth check response:", res.status);
+
     if (res.ok) {
       currentUser = await res.json();
+      console.log("✅ Auth check successful, user:", currentUser);
       if (typeof window !== "undefined" && currentUser) {
         localStorage.setItem("authUser", JSON.stringify(currentUser));
       }
       notify();
       return currentUser;
+    } else {
+      console.log("❌ Auth check failed with status:", res.status);
+      const text = await res.text();
+      console.log("❌ Response body:", text);
     }
   } catch (err) {
-    console.error("checkAuth error", err);
+    console.error("💥 Auth check error:", err);
   }
+
+  console.log("🧹 Clearing auth state due to failure");
   authToken = null;
   currentUser = null;
   if (typeof window !== "undefined") {

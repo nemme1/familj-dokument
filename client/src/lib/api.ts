@@ -3,7 +3,10 @@ import { getToken } from "./auth";
 const API_BASE = "";
 
 export async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  console.log("🌐 authFetch called with URL:", url);
   const token = getToken();
+  console.log("🔑 Token available:", !!token);
+
   const headers: Record<string, string> = {
     ...((options.headers as Record<string, string>) || {}),
   };
@@ -14,19 +17,30 @@ export async function authFetch(url: string, options: RequestInit = {}): Promise
     headers["Content-Type"] = "application/json";
   }
 
-  const res = await fetch(`${API_BASE}${url}`, { ...options, headers });
+  const fullUrl = `${API_BASE}${url}`;
+  console.log("🎯 Making request to:", fullUrl);
+  console.log("📋 Headers:", headers);
+
+  const res = await fetch(fullUrl, { ...options, headers });
+  console.log("📡 Response status:", res.status, res.statusText);
 
   if (!res.ok) {
+    console.log("❌ Request failed, getting error details...");
     const text = await res.text();
     let errorMsg = res.statusText;
     try {
       const json = JSON.parse(text);
       errorMsg = json.error || errorMsg;
+      console.log("❌ Error response JSON:", json);
     } catch {
       errorMsg = text || errorMsg;
+      console.log("❌ Error response text:", text);
     }
+    console.log("💥 Throwing error:", errorMsg);
     throw new Error(errorMsg);
   }
+
+  console.log("✅ Request successful");
   return res;
 }
 

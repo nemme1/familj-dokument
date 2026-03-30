@@ -21,6 +21,43 @@ import {
 import { useOfflineStatus } from "@/hooks/use-offline";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Wifi, WifiOff } from "lucide-react";
+import { Component, ReactNode } from "react";
+
+class ErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean, error?: Error}> {
+  constructor(props: {children: ReactNode}) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    console.error("🚨 React Error Boundary caught error:", error);
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: any) {
+    console.error("🚨 React Error Boundary details:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: "20px", fontFamily: "monospace", color: "red", background: "#f5f5f5" }}>
+          <h1>🚨 React Error</h1>
+          <pre>{this.state.error?.message}</pre>
+          <details>
+            <summary>Stack Trace</summary>
+            <pre>{this.state.error?.stack}</pre>
+          </details>
+          <button onClick={() => window.location.reload()} style={{ marginTop: "10px", padding: "10px", background: "#007bff", color: "white", border: "none", borderRadius: "4px" }}>
+            Reload Page
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 function MobileNav() {
   const [location] = useLocation();
@@ -138,9 +175,12 @@ function AuthenticatedLayout() {
 }
 
 function AppRouter() {
+  console.log("🔄 AppRouter rendering...");
   const { isAuthenticated, loading } = useAuth();
+  console.log("🔐 Auth state:", { isAuthenticated, loading });
 
   if (loading) {
+    console.log("⏳ Auth loading, showing loading screen...");
     return (
       <div className="min-h-screen flex items-center justify-center">
         <span className="text-sm text-muted-foreground">Kontrollerar inloggning...</span>
@@ -149,22 +189,27 @@ function AppRouter() {
   }
 
   if (!isAuthenticated) {
+    console.log("🚪 Not authenticated, showing login page...");
     return <LoginPage />;
   }
 
+  console.log("✅ Authenticated, showing main app...");
   return <AuthenticatedLayout />;
 }
 
 function App() {
+  console.log("🎯 App component rendering...");
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router hook={useHashLocation}>
-          <AppRouter />
-        </Router>
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Router hook={useHashLocation}>
+            <AppRouter />
+          </Router>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 
