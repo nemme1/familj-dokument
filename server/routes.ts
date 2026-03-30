@@ -13,6 +13,9 @@ import fs from "fs";
 const MAX_FILE_SIZE = Number(process.env.MAX_FILE_SIZE || 20 * 1024 * 1024);
 const sessionsFilePath = path.join(process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(process.cwd(), "data"), "sessions.json");
 
+// Debug logging for sessions path
+console.log("🔐 Sessions file path:", sessionsFilePath);
+
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_FILE_SIZE } });
 
 // Session tokens persisted to disk (data/sessions.json) for restart resilience
@@ -195,6 +198,58 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
     res.json({ totalSessions: entries.length, sessions: entries });
   }));
+
+  // Debug endpoint to check data paths
+  app.get("/api/debug/paths", (req: Request, res: Response) => {
+    const dataDir = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(process.cwd(), "data");
+    const filesDir = path.join(dataDir, "files");
+    const dbPath = path.join(dataDir, "familj-dokument.db");
+    
+    // Check if directories/files exist
+    const dataDirExists = fs.existsSync(dataDir);
+    const filesDirExists = fs.existsSync(filesDir);
+    const dbExists = fs.existsSync(dbPath);
+    
+    // Get file sizes
+    let dbSize = 0;
+    let filesCount = 0;
+    if (dbExists) {
+      try {
+        dbSize = fs.statSync(dbPath).size;
+      } catch (e) {
+        // ignore
+      }
+    }
+    if (filesDirExists) {
+      try {
+        const files = fs.readdirSync(filesDir);
+        filesCount = files.length;
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    res.json({
+      environment: {
+        DATA_DIR: process.env.DATA_DIR || 'not set',
+        CWD: process.cwd(),
+        NODE_ENV: process.env.NODE_ENV || 'not set'
+      },
+      paths: {
+        dataDir,
+        filesDir,
+        dbPath,
+        sessionsFilePath
+      },
+      status: {
+        dataDirExists,
+        filesDirExists,
+        dbExists,
+        dbSize: `${(dbSize / 1024 / 1024).toFixed(2)} MB`,
+        filesCount
+      }
+    });
+  });
 
   // Document routes
   app.get("/api/documents", authMiddleware, asyncHandler(async (req: AuthRequest, res: Response) => {

@@ -11,6 +11,14 @@ const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : pat
 const FILES_DIR = path.join(DATA_DIR, "files");
 const DB_PATH = path.join(DATA_DIR, "familj-dokument.db");
 
+// Debug logging for data paths
+console.log("🚀 FamiljDokument Data Paths:");
+console.log(`  DATA_DIR: ${DATA_DIR}`);
+console.log(`  FILES_DIR: ${FILES_DIR}`);
+console.log(`  DB_PATH: ${DB_PATH}`);
+console.log(`  DATA_DIR env: ${process.env.DATA_DIR || 'not set (using fallback)'}`);
+console.log(`  CWD: ${process.cwd()}`);
+
 // Ensure directories exist
 fs.mkdirSync(DATA_DIR, { recursive: true });
 fs.mkdirSync(FILES_DIR, { recursive: true });
