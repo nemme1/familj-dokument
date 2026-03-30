@@ -1,6 +1,6 @@
 import { getToken } from "./auth";
 
-const API_BASE = "__PORT_5000__".startsWith("__") ? "" : "__PORT_5000__";
+const API_BASE = "";
 
 export async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const token = getToken();
