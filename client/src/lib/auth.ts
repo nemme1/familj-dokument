@@ -1,5 +1,7 @@
 import { apiRequest } from "./queryClient";
 
+const API_BASE = '';
+
 export type AuthUser = {
   id: string;
   email: string;
@@ -100,9 +102,7 @@ export async function checkAuth(): Promise<AuthUser | null> {
 
   console.log("🌐 Making auth check request to:", `${API_BASE}/api/auth/me`);
   try {
-    const res = await fetch(`${API_BASE}/api/auth/me`, {
-      headers: { Authorization: `Bearer ${authToken}` },
-    });
+    const res = await apiRequest("GET", "/api/auth/me");
     console.log("📡 Auth check response:", res.status);
 
     if (res.ok) {
