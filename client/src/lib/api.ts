@@ -1,6 +1,6 @@
 import { getToken } from "./auth";
 
-const API_BASE = "";
+const API_BASE = typeof window !== "undefined" ? window.location.origin : "__PORT_5000__".startsWith("__") ? "" : "__PORT_5000__";
 
 export async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const token = getToken();
