@@ -16,6 +16,27 @@ const sessionsFilePath = path.join(process.env.DATA_DIR ? path.resolve(process.e
 // Debug logging for sessions path
 console.log("🔐 Sessions file path:", sessionsFilePath);
 
+// Session tokens persisted to disk (data/sessions.json) for restart resilience
+const sessions = new Map<string, string>(); // token -> userId
+
+if (fs.existsSync(sessionsFilePath)) {
+  try {
+    const raw = fs.readFileSync(sessionsFilePath, "utf8");
+    const loaded = JSON.parse(raw) as Record<string, string>;
+    Object.entries(loaded).forEach(([token, userId]) => sessions.set(token, userId));
+  } catch (err) {
+    console.error("Failed to read sessions file", err);
+  }
+}
+
+function saveSessionsToDisk() {
+  try {
+    fs.writeFileSync(sessionsFilePath, JSON.stringify(Object.fromEntries(sessions)), "utf8");
+  } catch (err) {
+    console.error("Failed to save sessions file", err);
+  }
+}
+
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_FILE_SIZE } });
 
 function asyncHandler(fn: (req: AuthRequest, res: Response, next: NextFunction) => Promise<void>) {
