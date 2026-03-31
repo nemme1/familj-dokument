@@ -6,7 +6,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
-import { useTheme } from "@/hooks/use-theme";
 import { logout } from "@/lib/auth";
 import LoginPage from "@/pages/login";
 import DashboardPage from "@/pages/dashboard";
@@ -16,9 +15,10 @@ import TrashPage from "@/pages/trash";
 import ViewDocumentPage from "@/pages/view-document";
 import NotFound from "@/pages/not-found";
 import {
-  Home, Images, Upload, Trash2, Sun, Moon, LogOut,
+  Home, Images, Upload, Trash2, LogOut,
   ShieldCheck, Menu, X
 } from "lucide-react";
+import { SettingsPanel } from "@/components/SettingsPanel";
 import { useOfflineStatus } from "@/hooks/use-offline";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Wifi, WifiOff } from "lucide-react";
@@ -101,7 +101,6 @@ function MobileNav() {
 
 function Header() {
   const { user } = useAuth();
-  const { theme, toggleTheme } = useTheme();
 
   return (
     <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border">
@@ -118,16 +117,7 @@ function Header() {
           {user && (
             <span className="text-xs text-muted-foreground hidden sm:inline">{user.name}</span>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="w-8 h-8"
-            onClick={toggleTheme}
-            aria-label={theme === "dark" ? "Byt till ljust tema" : "Byt till mörkt tema"}
-            data-testid="button-theme-toggle"
-          >
-            {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </Button>
+          {user && <SettingsPanel />}
           {user && (
             <Button
               variant="ghost"

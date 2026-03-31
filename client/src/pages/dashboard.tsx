@@ -2,13 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { authFetch, getFileUrl } from "@/lib/api";
-import { getToken, logout } from "@/lib/auth";
-import { Receipt, FileText, ArrowRight, TrendingUp, Upload, Camera, Plus, LogOut, User } from "lucide-react";
+import { Receipt, FileText, ArrowRight, TrendingUp, Upload, Camera, Plus } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { queryClient } from "@/lib/queryClient";
 import type { Document } from "@shared/schema";
 
 export default function DashboardPage() {
@@ -32,25 +29,16 @@ export default function DashboardPage() {
 
   const recent = recentDocs?.slice(0, 6) || [];
 
-  const { data: sessionsData, isLoading: sessionsLoading } = useQuery({
-    queryKey: ["/api/auth/sessions"],
-    queryFn: async () => {
-      const res = await authFetch("/api/auth/sessions");
-      return res.json();
-    },
-    enabled: user?.email === "nemmea@gmail.com",
-  });
-
   return (
     <div className="space-y-8">
       {/* Hero Welcome Section */}
       <div className="bg-gradient-to-br from-primary/5 via-primary/3 to-transparent rounded-2xl border border-primary/10 p-8 lg:p-10">
         <div>
           <h1 className="text-3xl lg:text-4xl font-semibold tracking-tight mb-2">
-            Hej, {user?.name?.split(' ')[0] || "du"}
+            Hej, {user?.name?.split(" ")[0] || "du"}
           </h1>
           <p className="text-lg text-muted-foreground">
-            V√§lkommen till ditt familj arkiv. H√§r kan ni s√§kert lagra och dela viktiga dokument.
+            V‰lkommen till ditt familj arkiv. H‰r kan ni s‰kert lagra och dela viktiga dokument.
           </p>
         </div>
       </div>
@@ -75,7 +63,7 @@ export default function DashboardPage() {
                 <FileText className="w-6 h-6 text-accent" />
               </div>
               <span className="font-semibold text-sm" data-testid="button-new-document">Nytt dokument</span>
-              <p className="text-xs text-muted-foreground mt-1">F√∂rs√§kringar, kontrakt m.m.</p>
+              <p className="text-xs text-muted-foreground mt-1">Fˆrs‰kringar, kontrakt m.m.</p>
             </CardContent>
           </Card>
         </Link>
@@ -126,7 +114,7 @@ export default function DashboardPage() {
                       {stats?.monthlyTotal || "0"}
                     </span>
                   </div>
-                  <p className="text-xs lg:text-sm text-muted-foreground font-medium">Den h√§r m√•naden</p>
+                  <p className="text-xs lg:text-sm text-muted-foreground font-medium">Den h‰r mÂnaden</p>
                 </CardContent>
               </Card>
               <Card className="border-border/40 bg-card/50">
@@ -144,87 +132,6 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
-
-      {/* Admin Sessions */}
-      {user?.email === "nemmea@gmail.com" ? (
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">Aktiva inloggningar</h2>
-            {sessionsData && sessionsData.totalSessions > 0 && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => {
-                  if (window.confirm(`Logga ut alla ${sessionsData.totalSessions} sessioner? Du loggas ocks√• ut.`)) {
-                    authFetch("/api/auth/sessions/all", { method: "DELETE" })
-                      .then(() => {
-                        queryClient.invalidateQueries({ queryKey: ["/api/auth/sessions"] });
-                        setTimeout(() => logout(), 300);
-                      });
-                  }
-                }}
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Logga ut alla
-              </Button>
-            )}
-          </div>
-          {sessionsLoading ? (
-            <div className="space-y-2">
-              {[1,2,3].map(i => <Card key={i}><CardContent className="py-4"><Skeleton className="h-6 w-48" /></CardContent></Card>)}
-            </div>
-          ) : sessionsData?.sessions?.length > 0 ? (
-            <div className="space-y-2">
-              {sessionsData.sessions.map((s: { token: string; userId: string; user: { name: string; email: string; role: string } | null }) => {
-                const isMe = s.userId === user?.id;
-                return (
-                  <Card key={s.token} className={`border-border/40 ${isMe ? "bg-primary/5 border-primary/20" : "bg-card/50"}`}>
-                    <CardContent className="py-3 px-4 flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                          <User className="w-4 h-4 text-muted-foreground" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">
-                            {s.user?.name ?? "Ok√§nd anv√§ndare"}
-                            {isMe && <span className="ml-2 text-xs text-primary">(du)</span>}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">{s.user?.email}</p>
-                        </div>
-                        <Badge variant="outline" className="text-xs flex-shrink-0">{s.user?.role}</Badge>
-                      </div>
-                      <Button
-                        variant={isMe ? "destructive" : "outline"}
-                        size="sm"
-                        className="flex-shrink-0"
-                        onClick={() => {
-                          const msg = isMe
-                            ? "Logga ut din nuvarande session? Du kommer att loggas ut."
-                            : `Logga ut ${s.user?.name ?? "denna session"}?`;
-                          if (!window.confirm(msg)) return;
-                          authFetch(`/api/auth/sessions/${encodeURIComponent(s.token)}`, { method: "DELETE" })
-                            .then(() => {
-                              queryClient.invalidateQueries({ queryKey: ["/api/auth/sessions"] });
-                              if (isMe) setTimeout(() => logout(), 300);
-                            });
-                        }}
-                      >
-                        <LogOut className="w-4 h-4" />
-                      </Button>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          ) : (
-            <Card className="border-border/40">
-              <CardContent className="py-6 text-center text-sm text-muted-foreground">
-                Inga aktiva sessioner
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      ) : null}
 
       {/* Recent Uploads Section */}
       <div>
@@ -254,13 +161,14 @@ export default function DashboardPage() {
               <div className="w-16 h-16 rounded-full bg-muted/40 flex items-center justify-center mb-4">
                 <Camera className="w-7 h-7 text-muted-foreground" />
               </div>
-              <p className="text-base font-semibold mb-2">Inga dokument √§nnu</p>
+              <p className="text-base font-semibold mb-2">Inga dokument ‰nnu</p>
               <p className="text-sm text-muted-foreground mb-6 max-w-xs">
-                B√∂rja med att ladda upp ett kvitto eller ett viktigt dokument
+                Bˆrja med att ladda upp ett kvitto eller ett viktigt dokument
               </p>
-              <Link href="/upload?type=receipt">
-                <Button size="sm" data-testid="button-first-upload">
-                  <Plus className="w-4 h-4 mr-2" /> Ladda upp nu
+              <Link href="/upload">
+                <Button size="sm" className="gap-2">
+                  <Plus className="w-4 h-4" />
+                  Ladda upp
                 </Button>
               </Link>
             </CardContent>
@@ -269,25 +177,27 @@ export default function DashboardPage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             {recent.map((doc) => (
               <Link key={doc.id} href={`/view/${doc.id}`}>
-                <Card className="hover-elevate cursor-pointer overflow-hidden border-border/40 transition-all hover:shadow-lg" data-testid={`card-doc-${doc.id}`}>
-                  <CardContent className="p-4">
-                    <div className="aspect-[4/3] rounded-lg bg-muted/50 mb-3 overflow-hidden flex items-center justify-center border border-border/40">
-                      {doc.mimeType.startsWith("image/") ? (
+                <Card className="hover-elevate cursor-pointer border-border/40 overflow-hidden hover:shadow-md transition-all">
+                  <CardContent className="p-0">
+                    <div className="aspect-[4/3] bg-muted/40 overflow-hidden">
+                      {doc.thumbnailPath ? (
                         <img
-                          src={getFileUrl(doc.id)}
+                          src={getFileUrl(doc.thumbnailPath)}
                           alt={doc.title}
                           className="w-full h-full object-cover"
-                          loading="lazy"
-                          crossOrigin="anonymous"
                         />
                       ) : (
-                        <FileText className="w-8 h-8 text-muted-foreground" />
+                        <div className="w-full h-full flex items-center justify-center">
+                          <FileText className="w-8 h-8 text-muted-foreground/40" />
+                        </div>
                       )}
                     </div>
-                    <p className="text-xs font-semibold truncate mb-2">{doc.title}</p>
-                    <Badge variant="secondary" className="text-[10px] px-2 py-1">
-                      {doc.category}
-                    </Badge>
+                    <div className="p-3">
+                      <p className="text-xs font-medium truncate">{doc.title}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {new Date(doc.createdAt).toLocaleDateString("sv-SE")}
+                      </p>
+                    </div>
                   </CardContent>
                 </Card>
               </Link>
