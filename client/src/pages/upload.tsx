@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLocation, useSearch } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,10 +12,8 @@ import { queryClient } from "@/lib/queryClient";
 import { receiptCategories, documentCategories } from "@shared/schema";
 import {
   Camera, Upload, X, Check, Loader2,
-  RotateCcw, RotateCw, FileImage, Crop
+  RotateCcw, FileImage
 } from "lucide-react";
-
-type CropMode = "none" | "auto" | "tight";
 
 export default function UploadPage() {
   const search = useSearch();
@@ -33,10 +31,6 @@ export default function UploadPage() {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [cameraStatus, setCameraStatus] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [rotation, setRotation] = useState(0);
-  const [contrast, setContrast] = useState(120);
-  const [cropMode, setCropMode] = useState<CropMode>("auto");
-  const [enhancing, setEnhancing] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -173,103 +167,12 @@ export default function UploadPage() {
         const f = new File([blob], `foto_${Date.now()}.jpg`, { type: "image/jpeg" });
         setFile(f);
         setPreview(URL.createObjectURL(blob));
-        setRotation(0);
-        setContrast(120);
-        setCropMode("auto");
         stopCamera();
       },
       "image/jpeg",
       0.9
     );
   };
-
-  const applyImageEnhancement = useCallback(async () => {
-    if (!file || !file.type.startsWith("image/")) return;
-
-    setEnhancing(true);
-    try {
-      const objectUrl = URL.createObjectURL(file);
-      const img = new Image();
-
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = () => reject(new Error("Kunde inte lasa bilden"));
-        img.src = objectUrl;
-      });
-
-      const srcW = img.naturalWidth;
-      const srcH = img.naturalHeight;
-
-      let sx = 0;
-      let sy = 0;
-      let sw = srcW;
-      let sh = srcH;
-
-      if (cropMode === "auto") {
-        sx = Math.floor(srcW * 0.05);
-        sy = Math.floor(srcH * 0.04);
-        sw = Math.floor(srcW * 0.9);
-        sh = Math.floor(srcH * 0.92);
-      } else if (cropMode === "tight") {
-        sx = Math.floor(srcW * 0.1);
-        sy = Math.floor(srcH * 0.08);
-        sw = Math.floor(srcW * 0.8);
-        sh = Math.floor(srcH * 0.84);
-      }
-
-      const normalizedRotation = ((rotation % 360) + 360) % 360;
-      const quarterTurn = normalizedRotation === 90 || normalizedRotation === 270;
-      const outW = quarterTurn ? sh : sw;
-      const outH = quarterTurn ? sw : sh;
-
-      const canvas = canvasRef.current;
-      if (!canvas) {
-        throw new Error("Canvas hittades inte");
-      }
-
-      canvas.width = outW;
-      canvas.height = outH;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        throw new Error("Kunde inte skapa bildkontext");
-      }
-
-      ctx.save();
-      ctx.translate(outW / 2, outH / 2);
-      ctx.rotate((normalizedRotation * Math.PI) / 180);
-      ctx.filter = `contrast(${contrast}%)`;
-      ctx.drawImage(img, sx, sy, sw, sh, -sw / 2, -sh / 2, sw, sh);
-      ctx.restore();
-
-      const blob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob(
-          (result) => {
-            if (!result) {
-              reject(new Error("Kunde inte skapa ny bild"));
-              return;
-            }
-            resolve(result);
-          },
-          "image/jpeg",
-          0.92,
-        );
-      });
-
-      URL.revokeObjectURL(objectUrl);
-      if (preview?.startsWith("blob:")) {
-        URL.revokeObjectURL(preview);
-      }
-
-      const enhancedFile = new File([blob], `scan_${Date.now()}.jpg`, { type: "image/jpeg" });
-      setFile(enhancedFile);
-      setPreview(URL.createObjectURL(blob));
-      toast({ title: "Snabbscan klar", description: "Bild förbättrad med beskärning, kontrast och rotation" });
-    } catch (err: any) {
-      toast({ title: "Snabbscan misslyckades", description: err?.message || "Okänt fel", variant: "destructive" });
-    } finally {
-      setEnhancing(false);
-    }
-  }, [contrast, cropMode, file, preview, rotation, toast]);
 
 
 
@@ -291,9 +194,6 @@ export default function UploadPage() {
         URL.revokeObjectURL(preview);
       }
       setPreview(URL.createObjectURL(f));
-      setRotation(0);
-      setContrast(120);
-      setCropMode("auto");
     } else {
       setPreview(null);
     }
@@ -335,9 +235,6 @@ export default function UploadPage() {
     setPreview(null);
     setTitle("");
     setCategory("");
-    setRotation(0);
-    setContrast(120);
-    setCropMode("auto");
   };
 
   return (
@@ -504,69 +401,7 @@ export default function UploadPage() {
               </Button>
             </div>
 
-            {file?.type.startsWith("image/") && (
-              <div className="mt-4 space-y-4 rounded-lg border border-border/60 bg-muted/30 p-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">Snabbscan</p>
-                  <Button
-                    size="sm"
-                    onClick={applyImageEnhancement}
-                    disabled={enhancing}
-                    data-testid="button-quickscan-apply"
-                  >
-                    {enhancing ? (
-                      <span className="flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Förbättrar...
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-2">
-                        <Crop className="w-4 h-4" />
-                        Förbättra bild
-                      </span>
-                    )}
-                  </Button>
-                </div>
 
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Beskärning</Label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <Button size="sm" variant={cropMode === "none" ? "default" : "outline"} onClick={() => setCropMode("none")}>Ingen</Button>
-                    <Button size="sm" variant={cropMode === "auto" ? "default" : "outline"} onClick={() => setCropMode("auto")}>Auto</Button>
-                    <Button size="sm" variant={cropMode === "tight" ? "default" : "outline"} onClick={() => setCropMode("tight")}>Tight</Button>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Kontrast</span>
-                    <span>{contrast}%</span>
-                  </div>
-                  <input
-                    type="range"
-                    min={90}
-                    max={170}
-                    step={5}
-                    value={contrast}
-                    onChange={(e) => setContrast(Number(e.target.value))}
-                    className="w-full"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs text-muted-foreground">Rotation: {rotation}°</Label>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setRotation((prev) => (prev + 90) % 360)}
-                    data-testid="button-quickscan-rotate"
-                  >
-                    <RotateCw className="w-4 h-4 mr-2" />
-                    Rotera
-                  </Button>
-                </div>
-              </div>
-            )}
           </CardContent>
         </Card>
       )}
