@@ -1,7 +1,7 @@
 {
-  "name": "FamiljDokument",
-  "short_name": "FamiljDok",
-  "description": "Säkert dokumentarkiv för familjen — kvitton och viktiga papper",
+  "name": "Dokumentvalvet",
+  "short_name": "Valvet",
+  "description": "Professionellt dokumentarkiv for hushallet - kvitton och viktiga papper",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#f5f7fa",

@@ -14,6 +14,13 @@ export default function TrashPage() {
   const { toast } = useToast();
   const [selectedDocs, setSelectedDocs] = useState<Set<string>>(new Set());
 
+  const confirmPermanentDelete = (count: number) =>
+    window.confirm(
+      count === 1
+        ? "Radera dokumentet permanent nu? Detta gar inte att angra."
+        : `Radera ${count} dokument permanent nu? Detta gar inte att angra.`,
+    );
+
   const { data: trashDocs, isLoading } = useQuery<Document[]>({
     queryKey: ["/api/documents/trash"],
     queryFn: async () => {
@@ -40,7 +47,11 @@ export default function TrashPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/documents/trash"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/documents/stats"] });
       toast({ title: "Raderat", description: "Dokumentet har raderats permanent" });
+    },
+    onError: () => {
+      toast({ title: "Fel", description: "Kunde inte radera dokumentet permanent", variant: "destructive" });
     },
   });
 
@@ -56,6 +67,22 @@ export default function TrashPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/documents/stats"] });
       toast({ title: "Återställda", description: `${selectedDocs.size} dokument har återställts` });
       setSelectedDocs(new Set());
+    },
+  });
+
+  const bulkPermanentDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      await Promise.all(ids.map((id) => authFetch(`/api/documents/${id}/permanent`, { method: "DELETE" })));
+    },
+    onSuccess: (_data, ids) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/documents/trash"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/documents/stats"] });
+      toast({ title: "Raderade", description: `${ids.length} dokument har raderats permanent` });
+      setSelectedDocs(new Set());
+    },
+    onError: () => {
+      toast({ title: "Fel", description: "Kunde inte radera valda dokument permanent", variant: "destructive" });
     },
   });
 
@@ -94,7 +121,7 @@ export default function TrashPage() {
           <Trash2 className="w-6 h-6" /> Papperskorg
         </h1>
         <p className="text-muted-foreground mt-1">
-          Dokument raderas permanent efter 30 dagar
+          Dokument raderas automatiskt efter 30 dagar eller direkt med knappen Radera permanent
         </p>
       </div>
 
@@ -121,6 +148,19 @@ export default function TrashPage() {
                 >
                   <RotateCcw className="w-4 h-4 mr-1" />
                   Återställ alla
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    const ids = Array.from(selectedDocs);
+                    if (!ids.length || !confirmPermanentDelete(ids.length)) return;
+                    bulkPermanentDeleteMutation.mutate(ids);
+                  }}
+                  disabled={bulkPermanentDeleteMutation.isPending}
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Radera valda permanent
                 </Button>
               </div>
             </div>
@@ -187,12 +227,16 @@ export default function TrashPage() {
                     <Button
                       variant="destructive"
                       size="sm"
-                      className="h-9 w-9 p-0"
-                      onClick={() => permanentDeleteMutation.mutate(doc.id)}
+                      className="h-9 px-3"
+                      onClick={() => {
+                        if (!confirmPermanentDelete(1)) return;
+                        permanentDeleteMutation.mutate(doc.id);
+                      }}
                       disabled={permanentDeleteMutation.isPending}
                       title="Radera permanent"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-4 h-4 mr-1" />
+                      Radera permanent
                     </Button>
                   </div>
                 </CardContent>
