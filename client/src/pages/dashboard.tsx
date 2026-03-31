@@ -38,7 +38,7 @@ export default function DashboardPage() {
             Hej, {user?.name?.split(" ")[0] || "du"}
           </h1>
           <p className="text-lg text-muted-foreground">
-            Välkommen till ditt familj arkiv. Här kan ni säkert lagra och dela viktiga dokument.
+            V&auml;lkommen till ditt familj arkiv. H&auml;r kan ni s&auml;kert lagra och dela viktiga dokument.
           </p>
         </div>
       </div>
@@ -63,7 +63,7 @@ export default function DashboardPage() {
                 <FileText className="w-6 h-6 text-accent" />
               </div>
               <span className="font-semibold text-sm" data-testid="button-new-document">Nytt dokument</span>
-              <p className="text-xs text-muted-foreground mt-1">Försäkringar, kontrakt m.m.</p>
+              <p className="text-xs text-muted-foreground mt-1">F&ouml;rs&auml;kringar, kontrakt m.m.</p>
             </CardContent>
           </Card>
         </Link>
@@ -114,7 +114,7 @@ export default function DashboardPage() {
                       {stats?.monthlyTotal || "0"}
                     </span>
                   </div>
-                  <p className="text-xs lg:text-sm text-muted-foreground font-medium">Den här månaden</p>
+                  <p className="text-xs lg:text-sm text-muted-foreground font-medium">Den h&auml;r m&aring;naden</p>
                 </CardContent>
               </Card>
               <Card className="border-border/40 bg-card/50">
@@ -161,9 +161,9 @@ export default function DashboardPage() {
               <div className="w-16 h-16 rounded-full bg-muted/40 flex items-center justify-center mb-4">
                 <Camera className="w-7 h-7 text-muted-foreground" />
               </div>
-              <p className="text-base font-semibold mb-2">Inga dokument ännu</p>
+              <p className="text-base font-semibold mb-2">Inga dokument &auml;nnu</p>
               <p className="text-sm text-muted-foreground mb-6 max-w-xs">
-                Börja med att ladda upp ett kvitto eller ett viktigt dokument
+                B&ouml;rja med att ladda upp ett kvitto eller ett viktigt dokument
               </p>
               <Link href="/upload">
                 <Button size="sm" className="gap-2">
