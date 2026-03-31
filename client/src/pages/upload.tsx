@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { uploadDocument } from "@/lib/api";
-import { Receipt } from "lucide-react";
+import { Receipt, FileText } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import { receiptCategories, documentCategories } from "@shared/schema";
 import {
