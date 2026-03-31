@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { authFetch, getFileUrl } from "@/lib/api";
 import { getToken } from "@/lib/auth";
-import { Receipt, FileText } from "lucide-react";
+import { Receipt, FileText, ArrowRight } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import type { Document } from "@shared/schema";
 
