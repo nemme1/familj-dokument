@@ -91,6 +91,20 @@ async function requireDocument(req: AuthRequest, res: Response, next: NextFuncti
   next();
 }
 
+async function requireDocumentIncludingDeleted(req: AuthRequest, res: Response, next: NextFunction) {
+  const doc = await storage.getDocument(req.params.id);
+  if (!doc) {
+    res.status(404).json({ error: "Dokument hittades inte", code: "DOCUMENT_NOT_FOUND" });
+    return;
+  }
+  if (doc.userId !== req.userId) {
+    res.status(403).json({ error: "Atkomst nekad", code: "FORBIDDEN" });
+    return;
+  }
+  req.requestedDoc = doc;
+  next();
+}
+
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
   // WebSocket for real-time sync
   const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
@@ -320,7 +334,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json(deleted);
   }));
 
-  app.post("/api/documents/:id/restore", authMiddleware, requireDocument, asyncHandler(async (req: AuthRequest, res: Response) => {
+  app.post("/api/documents/:id/restore", authMiddleware, requireDocumentIncludingDeleted, asyncHandler(async (req: AuthRequest, res: Response) => {
     const restored = await storage.restoreDocument(req.params.id);
     if (!restored) {
       res.status(404).json({ error: "Dokument hittades inte", code: "DOCUMENT_NOT_FOUND" });
@@ -330,7 +344,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json(restored);
   }));
 
-  app.delete("/api/documents/:id/permanent", authMiddleware, requireDocument, asyncHandler(async (req: AuthRequest, res: Response) => {
+  app.delete("/api/documents/:id/permanent", authMiddleware, requireDocumentIncludingDeleted, asyncHandler(async (req: AuthRequest, res: Response) => {
     const deleted = await storage.permanentlyDeleteDocument(req.params.id);
     if (!deleted) {
       res.status(404).json({ error: "Dokument hittades inte", code: "DOCUMENT_NOT_FOUND" });

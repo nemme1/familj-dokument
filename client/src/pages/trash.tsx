@@ -129,11 +129,11 @@ export default function TrashPage() {
       {selectedDocs.size > 0 && (
         <Card className="border-primary/20 bg-primary/5">
           <CardContent className="py-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <span className="text-sm font-medium">
                 {selectedDocs.size} dokument valda
               </span>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   variant="outline"
                   size="sm"
@@ -213,7 +213,7 @@ export default function TrashPage() {
                       </span>
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex shrink-0 gap-2">
                     <Button
                       variant="outline"
                       size="sm"
@@ -227,7 +227,7 @@ export default function TrashPage() {
                     <Button
                       variant="destructive"
                       size="sm"
-                      className="h-9 px-3"
+                      className="h-9 w-9 p-0 sm:w-auto sm:px-3"
                       onClick={() => {
                         if (!confirmPermanentDelete(1)) return;
                         permanentDeleteMutation.mutate(doc.id);
@@ -235,8 +235,8 @@ export default function TrashPage() {
                       disabled={permanentDeleteMutation.isPending}
                       title="Radera permanent"
                     >
-                      <Trash2 className="w-4 h-4 mr-1" />
-                      Radera permanent
+                      <Trash2 className="w-4 h-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Radera permanent</span>
                     </Button>
                   </div>
                 </CardContent>
