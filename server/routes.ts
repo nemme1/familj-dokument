@@ -213,6 +213,35 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json({ totalSessions: entries.length, sessions: entries });
   }));
 
+  app.delete("/api/auth/sessions/all", authMiddleware, asyncHandler(async (req: AuthRequest, res: Response) => {
+    const user = await storage.getUser(req.userId!);
+    if (!user || user.role !== "admin") {
+      res.status(403).json({ error: "Endast admin kan logga ut alla", code: "FORBIDDEN" });
+      return;
+    }
+    const count = sessions.size;
+    sessions.clear();
+    saveSessionsToDisk();
+    res.json({ ok: true, cleared: count });
+  }));
+
+  app.delete("/api/auth/sessions/:token", authMiddleware, asyncHandler(async (req: AuthRequest, res: Response) => {
+    const user = await storage.getUser(req.userId!);
+    if (!user || user.role !== "admin") {
+      res.status(403).json({ error: "Endast admin kan logga ut sessioner", code: "FORBIDDEN" });
+      return;
+    }
+    const token = req.params.token as string;
+    if (!sessions.has(token)) {
+      res.status(404).json({ error: "Session hittades inte", code: "NOT_FOUND" });
+      return;
+    }
+    sessions.delete(token);
+    saveSessionsToDisk();
+    res.json({ ok: true });
+  }));
+
+
   // Debug endpoint to check data paths
   app.get("/api/debug/paths", (req: Request, res: Response) => {
     const dataDir = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(process.cwd(), "data");

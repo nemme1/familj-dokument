@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { authFetch, getFileUrl } from "@/lib/api";
-import { getToken } from "@/lib/auth";
-import { Receipt, FileText, ArrowRight, TrendingUp, Upload, Camera, Plus } from "lucide-react";
+import { getToken, logout } from "@/lib/auth";
+import { Receipt, FileText, ArrowRight, TrendingUp, Upload, Camera, Plus, LogOut, User } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { queryClient } from "@/lib/queryClient";
 import type { Document } from "@shared/schema";
 
 export default function DashboardPage() {
@@ -37,7 +38,7 @@ export default function DashboardPage() {
       const res = await authFetch("/api/auth/sessions");
       return res.json();
     },
-    enabled: user?.role === "admin",
+    enabled: user?.email === "nemmea@gmail.com",
   });
 
   return (
@@ -145,23 +146,80 @@ export default function DashboardPage() {
       </div>
 
       {/* Admin Sessions */}
-      {user?.role === "admin" ? (
+      {user?.email === "nemmea@gmail.com" ? (
         <div>
-          <h2 className="text-lg font-semibold mb-4">Inloggningar</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Aktiva inloggningar</h2>
+            {sessionsData && sessionsData.totalSessions > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  if (window.confirm(`Logga ut alla ${sessionsData.totalSessions} sessioner? Du loggas också ut.`)) {
+                    authFetch("/api/auth/sessions/all", { method: "DELETE" })
+                      .then(() => {
+                        queryClient.invalidateQueries({ queryKey: ["/api/auth/sessions"] });
+                        setTimeout(() => logout(), 300);
+                      });
+                  }
+                }}
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Logga ut alla
+              </Button>
+            )}
+          </div>
           {sessionsLoading ? (
-            <Card className="border-border/40">
-              <CardContent className="py-5">
-                <Skeleton className="h-8 w-24" />
-              </CardContent>
-            </Card>
+            <div className="space-y-2">
+              {[1,2,3].map(i => <Card key={i}><CardContent className="py-4"><Skeleton className="h-6 w-48" /></CardContent></Card>)}
+            </div>
+          ) : sessionsData?.sessions?.length > 0 ? (
+            <div className="space-y-2">
+              {sessionsData.sessions.map((s: { token: string; userId: string; user: { name: string; email: string; role: string } | null }) => {
+                const isMe = s.userId === user?.id;
+                return (
+                  <Card key={s.token} className={`border-border/40 ${isMe ? "bg-primary/5 border-primary/20" : "bg-card/50"}`}>
+                    <CardContent className="py-3 px-4 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                          <User className="w-4 h-4 text-muted-foreground" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">
+                            {s.user?.name ?? "Okänd användare"}
+                            {isMe && <span className="ml-2 text-xs text-primary">(du)</span>}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">{s.user?.email}</p>
+                        </div>
+                        <Badge variant="outline" className="text-xs flex-shrink-0">{s.user?.role}</Badge>
+                      </div>
+                      <Button
+                        variant={isMe ? "destructive" : "outline"}
+                        size="sm"
+                        className="flex-shrink-0"
+                        onClick={() => {
+                          const msg = isMe
+                            ? "Logga ut din nuvarande session? Du kommer att loggas ut."
+                            : `Logga ut ${s.user?.name ?? "denna session"}?`;
+                          if (!window.confirm(msg)) return;
+                          authFetch(`/api/auth/sessions/${encodeURIComponent(s.token)}`, { method: "DELETE" })
+                            .then(() => {
+                              queryClient.invalidateQueries({ queryKey: ["/api/auth/sessions"] });
+                              if (isMe) setTimeout(() => logout(), 300);
+                            });
+                        }}
+                      >
+                        <LogOut className="w-4 h-4" />
+                      </Button>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
           ) : (
-            <Card className="border-border/40 bg-card/50">
-              <CardContent className="py-6">
-                <div className="flex items-center gap-3">
-                  <Badge variant="secondary" className="font-semibold">Admin</Badge>
-                  <span className="text-2xl font-semibold">{sessionsData?.totalSessions ?? 0}</span>
-                  <span className="text-sm text-muted-foreground">aktiva sessioner just nu</span>
-                </div>
+            <Card className="border-border/40">
+              <CardContent className="py-6 text-center text-sm text-muted-foreground">
+                Inga aktiva sessioner
               </CardContent>
             </Card>
           )}
