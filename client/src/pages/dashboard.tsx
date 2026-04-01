@@ -27,7 +27,7 @@ export default function DashboardPage() {
     },
   });
 
-  const recent = recentDocs?.slice(0, 6) || [];
+  const recent = recentDocs?.slice(0, 2) || [];
 
   return (
     <div className="space-y-8">
@@ -145,8 +145,8 @@ export default function DashboardPage() {
         </div>
 
         {docsLoading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {Array.from({ length: 6 }).map((_, i) => (
+          <div className="grid grid-cols-2 gap-4">
+            {Array.from({ length: 2 }).map((_, i) => (
               <Card key={i} className="border-border/40">
                 <CardContent className="p-4">
                   <Skeleton className="aspect-[4/3] rounded-lg mb-3" />
@@ -174,17 +174,18 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             {recent.map((doc) => (
               <Link key={doc.id} href={`/view/${doc.id}`}>
                 <Card className="hover-elevate cursor-pointer border-border/40 overflow-hidden hover:shadow-md transition-all">
                   <CardContent className="p-0">
                     <div className="aspect-[4/3] bg-muted/40 overflow-hidden">
-                      {doc.thumbnailPath ? (
+                      {doc.mimeType.startsWith("image/") ? (
                         <img
-                          src={getFileUrl(doc.thumbnailPath)}
+                          src={getFileUrl(doc.id)}
                           alt={doc.title}
                           className="w-full h-full object-cover"
+                          loading="lazy"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">

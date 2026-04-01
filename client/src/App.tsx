@@ -150,7 +150,7 @@ function AuthenticatedLayout() {
           </AlertDescription>
         </Alert>
       )}
-      <main className="flex-1 px-4 py-4 max-w-2xl mx-auto w-full">
+      <main className="flex-1 px-4 py-4 pb-24 md:pb-4 max-w-2xl mx-auto w-full">
         <Switch>
           <Route path="/" component={DashboardPage} />
           <Route path="/upload" component={UploadPage} />
