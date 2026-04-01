@@ -31,43 +31,31 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      {/* Hero Welcome Section */}
-      <div className="bg-gradient-to-br from-primary/5 via-primary/3 to-transparent rounded-2xl border border-primary/10 p-8 lg:p-10">
-        <div>
-          <h1 className="text-3xl lg:text-4xl font-semibold tracking-tight mb-2">
-            Hej, {user?.name?.split(" ")[0] || "du"}
-          </h1>
-          <p className="text-lg text-muted-foreground">
-            V&auml;lkommen till ditt familj arkiv. H&auml;r kan ni s&auml;kert lagra och dela viktiga dokument.
-          </p>
-        </div>
-      </div>
-
-      {/* Quick Action Cards */}
-      <div className="grid grid-cols-2 gap-4 lg:gap-6">
-        <Link href="/upload?type=receipt">
-          <Card className="hover-elevate cursor-pointer border-border/60 transition-all h-full hover:shadow-lg">
-            <CardContent className="flex flex-col items-center justify-center py-8 px-4 text-center">
-              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center mb-4">
-                <Receipt className="w-6 h-6 text-primary" />
-              </div>
-              <span className="font-semibold text-sm" data-testid="button-new-receipt">Nytt kvitto</span>
-              <p className="text-xs text-muted-foreground mt-1">Spara kvitton & bilagor</p>
-            </CardContent>
-          </Card>
-        </Link>
-        <Link href="/upload?type=document">
-          <Card className="hover-elevate cursor-pointer border-border/60 transition-all h-full hover:shadow-lg">
-            <CardContent className="flex flex-col items-center justify-center py-8 px-4 text-center">
-              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-accent/10 to-accent/5 flex items-center justify-center mb-4">
-                <FileText className="w-6 h-6 text-accent" />
-              </div>
-              <span className="font-semibold text-sm" data-testid="button-new-document">Nytt dokument</span>
-              <p className="text-xs text-muted-foreground mt-1">F&ouml;rs&auml;kringar, kontrakt m.m.</p>
-            </CardContent>
-          </Card>
-        </Link>
-      </div>
+      {/* Compact Header + Quickstart */}
+      <Card className="border-border/50 bg-card/40">
+        <CardContent className="py-4 px-4 sm:px-5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <p className="text-base font-semibold">Hej, {user?.name?.split(" ")[0] || "du"}</p>
+              <p className="text-xs text-muted-foreground">Snabbstart</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 w-full sm:w-auto">
+              <Link href="/upload?type=receipt">
+                <Button variant="outline" size="sm" className="w-full justify-start gap-2" data-testid="button-new-receipt">
+                  <Receipt className="w-4 h-4" />
+                  Nytt kvitto
+                </Button>
+              </Link>
+              <Link href="/upload?type=document">
+                <Button variant="outline" size="sm" className="w-full justify-start gap-2" data-testid="button-new-document">
+                  <FileText className="w-4 h-4" />
+                  Nytt dokument
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Statistics Grid */}
       <div>
